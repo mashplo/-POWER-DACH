@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "backend"
+version = "0.1.0"
+description = ""
+authors = ["techatlasdev <srgoqui@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+uvicorn = "^0.38.0"
+fastapi = "^0.119.0"
+
+[tool.poetry.scripts]
+start = "backend.runner:ejecutar_api"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
