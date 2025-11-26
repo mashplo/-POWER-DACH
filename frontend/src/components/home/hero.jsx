@@ -14,8 +14,8 @@ export default function Hero() {
                     Encuentra todo lo que necesitas para tu entrenamiento. 
                     Calidad profesional al mejor precio.
                 </p>
-                <a href="/proteina" className="btn btn-primary btn-lg">
-                    Ver proteina
+                <a href="/productos" className="btn btn-primary btn-lg">
+                    Ver productos
                 </a>
             </div>
         </section>

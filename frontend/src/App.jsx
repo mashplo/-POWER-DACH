@@ -4,6 +4,7 @@ import { Toaster } from "sonner"
 import BaseLayout from "./layouts/base"
 
 import Home from "./pages/home"
+import ProductosPage from "./pages/productos"
 import ProteinaShoppingCart from "./pages/proteina"
 import ProductoDetalle from "./pages/producto-detalle"
 import CreatinaShoppingCart from "./pages/creatina"
@@ -18,6 +19,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<BaseLayout />}>
           <Route index element={<Home />} />
+          <Route path="productos" element={<ProductosPage />} />
           <Route path="proteina" element={<ProteinaShoppingCart />} />
           <Route path="proteina/:id" element={<ProductoDetalle />} />
           <Route path="creatina" element={<CreatinaShoppingCart />} />
