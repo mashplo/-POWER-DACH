@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from backend.database import get_db, inicializar_db
+import os
 
 app = FastAPI()
 
@@ -13,6 +15,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Servir archivos estáticos (imágenes)
+assets_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
+app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
 
 inicializar_db()
 
@@ -52,6 +58,29 @@ def obtener_proteinas():
         productos_formateados.append(producto_dict)
     
     return productos_formateados
+
+# ===== ENDPOINTS DE CREATINAS =====
+
+@app.get("/api/v1/creatinas")
+def obtener_creatinas():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM creatinas")
+    creatinas = cursor.fetchall()
+    conn.close()
+    
+    # Formatear creatinas para que coincidan con el formato del API
+    creatinas_formateadas = []
+    for creatina in creatinas:
+        creatina_dict = dict(creatina)
+        # Convertir images de string a array
+        if "images" in creatina_dict and creatina_dict["images"]:
+            creatina_dict["images"] = creatina_dict["images"].split(",")
+        else:
+            creatina_dict["images"] = []
+        creatinas_formateadas.append(creatina_dict)
+    
+    return creatinas_formateadas
 
 # ===== ENDPOINTS DE USUARIOS (SÚPER SIMPLES) =====
 

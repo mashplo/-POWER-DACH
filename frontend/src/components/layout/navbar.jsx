@@ -50,9 +50,13 @@ export default function Navbar() {
                     </div>
                     <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-black rounded-box w-52">
                         <li><a href="/proteina">Proteína</a></li>
+                        <li><a href="/creatina">Creatina</a></li>
                     </ul>
                 </div>
-                <a href="/" className="btn btn-ghost text-xl font-bold">Power Dutch</a>
+                <a href="/" className="btn btn-ghost text-xl font-bold flex items-center gap-2">
+                    <img src="/logo.png" alt="Power Dutch Logo" className="h-10 w-auto" />
+                    Power Dutch
+                </a>
             </div>
             <div className="navbar-center hidden lg:flex">
                 <ul className="menu menu-horizontal px-1">

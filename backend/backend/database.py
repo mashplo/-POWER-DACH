@@ -23,6 +23,18 @@ def inicializar_db():
         )
     ''')
     
+    # Tabla de creatinas
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS creatinas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            price REAL NOT NULL,
+            images TEXT NOT NULL,
+            category TEXT NOT NULL
+        )
+    ''')
+    
     # Tabla de usuarios (simple)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (

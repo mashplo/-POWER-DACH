@@ -5,6 +5,9 @@ import BaseLayout from "./layouts/base"
 
 import Home from "./pages/home"
 import ProteinaShoppingCart from "./pages/proteina"
+import ProductoDetalle from "./pages/producto-detalle"
+import CreatinaShoppingCart from "./pages/creatina"
+import CreatinaDetalle from "./pages/creatina-detalle"
 import Profile from "./pages/profile"
 import Login from "./pages/login"
 import Register from "./pages/register"
@@ -16,6 +19,9 @@ export default function App() {
         <Route path="/" element={<BaseLayout />}>
           <Route index element={<Home />} />
           <Route path="proteina" element={<ProteinaShoppingCart />} />
+          <Route path="proteina/:id" element={<ProductoDetalle />} />
+          <Route path="creatina" element={<CreatinaShoppingCart />} />
+          <Route path="creatina/:id" element={<CreatinaDetalle />} />
           <Route path="profile" element={<Profile />} />
         </Route>
         <Route path="/login" element={<Login />} />
