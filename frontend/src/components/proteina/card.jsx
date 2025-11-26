@@ -1,10 +1,25 @@
 import { useNavigate } from "react-router-dom";
+import { ShoppingCart } from "lucide-react";
+import { toast } from "sonner";
+import { addItemCarrito } from "../../herramientas/carrito";
 
 export default function Card({ producto }) {
   const navigate = useNavigate();
 
   const handleClick = () => {
     navigate(`/proteina/${producto.id}`);
+  };
+
+  const handleAgregarCarrito = (e) => {
+    e.stopPropagation(); // Evitar que se active el click del card
+    addItemCarrito({
+      id: producto.id,
+      title: producto.title,
+      price: producto.price,
+      image: producto.images[0],
+      tipo: "proteina",
+    });
+    toast.success(`${producto.title} agregado al carrito`);
   };
 
   return (
@@ -16,6 +31,13 @@ export default function Card({ producto }) {
       <div className="card-content px-5 py-4 flex flex-col gap-2">
         <h2 className="card-title text-lg font-semibold">{producto.title}</h2>
         <p className="card-price text-2xl font-bold text-primary">S/{producto.price}</p>
+        <button
+          onClick={handleAgregarCarrito}
+          className="btn btn-primary btn-sm mt-2 w-full"
+        >
+          <ShoppingCart size={16} />
+          Agregar al Carrito
+        </button>
       </div>
     </div>
   );

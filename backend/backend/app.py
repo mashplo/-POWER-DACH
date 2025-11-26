@@ -39,19 +39,45 @@ def read_root():
 # ===== ENDPOINTS DE PROTEÍNAS =====
 
 @app.get("/api/v1/products")
-def obtener_proteinas(min_price: float | None = None):
-    """Obtener lista de proteínas, opcionalmente filtradas por precio mínimo.
+def obtener_proteinas(
+    min_price: float | None = None,
+    max_price: float | None = None,
+    category: str | None = None,
+    product_type: str | None = None,
+    search: str | None = None
+):
+    """Obtener lista de proteínas con filtros múltiples.
 
     Query Params:
-    - min_price: filtra productos con precio estrictamente mayor a este valor.
+    - min_price: precio mínimo
+    - max_price: precio máximo
+    - category: filtrar por categoría (Whey Protein, Whey Isolate, etc.)
+    - product_type: tipo de producto (Proteína, Creatina)
+    - search: búsqueda por título
     """
     conn = get_db()
     cursor = conn.cursor()
-    base_query = "SELECT * FROM productos"
+    base_query = "SELECT * FROM productos WHERE 1=1"
     params: list = []
+    
     if min_price is not None:
-        base_query += " WHERE price > ?"
+        base_query += " AND price >= ?"
         params.append(min_price)
+    
+    if max_price is not None:
+        base_query += " AND price <= ?"
+        params.append(max_price)
+    
+    if category and category != "":
+        base_query += " AND category LIKE ?"
+        params.append(f"%{category}%")
+    
+    if search and search != "":
+        base_query += " AND title LIKE ?"
+        params.append(f"%{search}%")
+    
+    base_query += " ORDER BY title ASC"
+    
     cursor.execute(base_query, params)
     productos = cursor.fetchall()
     conn.close()
@@ -67,25 +93,63 @@ def obtener_proteinas(min_price: float | None = None):
     return productos_formateados
 
 @app.get("/api/products")
-def obtener_proteinas_alias(min_price: float | None = None):
+def obtener_proteinas_alias(
+    min_price: float | None = None,
+    max_price: float | None = None,
+    category: str | None = None,
+    product_type: str | None = None,
+    search: str | None = None
+):
     """Alias sin versión para compatibilidad con frontend (misma lógica)."""
-    return obtener_proteinas(min_price)
+    return obtener_proteinas(min_price, max_price, category, product_type, search)
 
 # ===== ENDPOINTS DE CREATINAS =====
 
 @app.get("/api/v1/creatinas")
-def obtener_creatinas():
+def obtener_creatinas(
+    min_price: float | None = None,
+    max_price: float | None = None,
+    category: str | None = None,
+    search: str | None = None
+):
+    """Obtener lista de creatinas con filtros múltiples.
+
+    Query Params:
+    - min_price: precio mínimo
+    - max_price: precio máximo
+    - category: filtrar por categoría (Monohidrato, etc.)
+    - search: búsqueda por título
+    """
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM creatinas")
+    base_query = "SELECT * FROM creatinas WHERE 1=1"
+    params: list = []
+    
+    if min_price is not None:
+        base_query += " AND price >= ?"
+        params.append(min_price)
+    
+    if max_price is not None:
+        base_query += " AND price <= ?"
+        params.append(max_price)
+    
+    if category and category != "":
+        base_query += " AND category LIKE ?"
+        params.append(f"%{category}%")
+    
+    if search and search != "":
+        base_query += " AND title LIKE ?"
+        params.append(f"%{search}%")
+    
+    base_query += " ORDER BY title ASC"
+    
+    cursor.execute(base_query, params)
     creatinas = cursor.fetchall()
     conn.close()
     
-    # Formatear creatinas para que coincidan con el formato del API
     creatinas_formateadas = []
     for creatina in creatinas:
         creatina_dict = dict(creatina)
-        # Convertir images de string a array
         if "images" in creatina_dict and creatina_dict["images"]:
             creatina_dict["images"] = creatina_dict["images"].split(",")
         else:
@@ -93,6 +157,61 @@ def obtener_creatinas():
         creatinas_formateadas.append(creatina_dict)
     
     return creatinas_formateadas
+
+# ===== ENDPOINTS DE PRE-ENTRENOS =====
+
+@app.get("/api/v1/preentrenos")
+def obtener_preentrenos(
+    min_price: float | None = None,
+    max_price: float | None = None,
+    category: str | None = None,
+    search: str | None = None
+):
+    """Obtener lista de pre-entrenos con filtros múltiples.
+
+    Query Params:
+    - min_price: precio mínimo
+    - max_price: precio máximo
+    - category: filtrar por categoría
+    - search: búsqueda por título
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    base_query = "SELECT * FROM preentrenos WHERE 1=1"
+    params: list = []
+    
+    if min_price is not None:
+        base_query += " AND price >= ?"
+        params.append(min_price)
+    
+    if max_price is not None:
+        base_query += " AND price <= ?"
+        params.append(max_price)
+    
+    if category and category != "":
+        base_query += " AND category LIKE ?"
+        params.append(f"%{category}%")
+    
+    if search and search != "":
+        base_query += " AND title LIKE ?"
+        params.append(f"%{search}%")
+    
+    base_query += " ORDER BY title ASC"
+    
+    cursor.execute(base_query, params)
+    preentrenos = cursor.fetchall()
+    conn.close()
+    
+    preentrenos_formateados = []
+    for preentreno in preentrenos:
+        preentreno_dict = dict(preentreno)
+        if "images" in preentreno_dict and preentreno_dict["images"]:
+            preentreno_dict["images"] = preentreno_dict["images"].split(",")
+        else:
+            preentreno_dict["images"] = []
+        preentrenos_formateados.append(preentreno_dict)
+    
+    return preentrenos_formateados
 
 # ===== ENDPOINTS DE USUARIOS (SÚPER SIMPLES) =====
 

@@ -1,5 +1,6 @@
-import { ShoppingCart, User, LogOut } from "lucide-react"
+import { ShoppingCart, User, LogOut, History } from "lucide-react"
 import { useState, useEffect } from "react"
+import { getCarritoCount } from "../../herramientas/carrito"
 
 export default function Navbar() {
     const [cantidadCarrito, setCantidadCarrito] = useState(0)
@@ -7,13 +8,8 @@ export default function Navbar() {
 
     useEffect(() => {
         const actualizarCarrito = () => {
-            const carritoGuardado = localStorage.getItem("carrito")
-            if (carritoGuardado) {
-                const carrito = JSON.parse(carritoGuardado)
-                setCantidadCarrito(carrito.length)
-            } else {
-                setCantidadCarrito(0)
-            }
+            const cantidad = getCarritoCount()
+            setCantidadCarrito(cantidad)
         }
 
         actualizarCarrito()
@@ -51,6 +47,7 @@ export default function Navbar() {
                     <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-black rounded-box w-52">
                         <li><a href="/proteina">Proteína</a></li>
                         <li><a href="/creatina">Creatina</a></li>
+                        <li><a href="/productos">Todos los Productos</a></li>
                     </ul>
                 </div>
                 <a href="/" className="btn btn-ghost text-xl font-bold flex items-center gap-2">
@@ -63,10 +60,14 @@ export default function Navbar() {
                 </ul>
             </div>
             <div className="navbar-end">
-                <a href="/profile" className="btn btn-ghost btn-circle mr-2">
+                <a href="/carrito" className="btn btn-ghost btn-circle mr-2">
                     <div className="indicator">
                         <ShoppingCart size={24} />
-                        <span className="badge badge-sm indicator-item bg-red-600 border-none text-white">{cantidadCarrito}</span>
+                        {cantidadCarrito > 0 && (
+                            <span className="badge badge-sm indicator-item bg-red-600 border-none text-white">
+                                {cantidadCarrito}
+                            </span>
+                        )}
                     </div>
                 </a>
 
@@ -80,6 +81,9 @@ export default function Navbar() {
                                 <span>Hola, {usuarioActual.nombre}</span>
                             </li>
                             <li><a href="/profile">Mi Perfil</a></li>
+                            <li><a href="/historial">
+                                <History size={16} /> Mis Pedidos
+                            </a></li>
                             <li><button onClick={handleLogout} className="text-left">
                                 <LogOut size={16} /> Cerrar Sesión
                             </button></li>
