@@ -1,7 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, EmailStr
+try:
+    from pydantic import BaseModel, EmailStr
+except ImportError:
+    # Fallback si email-validator no está instalado todavía en el entorno
+    from pydantic import BaseModel
+    EmailStr = str  # type: ignore
 from backend.database import get_db, inicializar_db, metadata, engine, usuarios, productos, creatinas, preentrenos
 from sqlalchemy import text, select, and_
 from passlib.context import CryptContext
