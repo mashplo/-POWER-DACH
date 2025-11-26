@@ -1,8 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-from backend.database import get_db, inicializar_db, metadata, engine
+from pydantic import BaseModel, EmailStr
+from backend.database import get_db, inicializar_db, metadata, engine, usuarios
+from sqlalchemy import text, select
+from passlib.context import CryptContext
+from jose import jwt, JWTError
+from datetime import datetime, timedelta
+import secrets
 import os
 
 app = FastAPI()
@@ -23,14 +28,49 @@ app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
 inicializar_db()
 
 # Modelos simples
-class Usuario(BaseModel):
+class RegisterIn(BaseModel):
     nombre: str
-    email: str
+    email: EmailStr
     password: str
 
-class Login(BaseModel):
-    email: str
+class LoginIn(BaseModel):
+    email: EmailStr
     password: str
+
+class UserOut(BaseModel):
+    id: int
+    nombre: str
+    email: EmailStr
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+# Seguridad básica
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_hex(32))
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return pwd_context.verify(plain, hashed)
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def get_current_user(token: str = Depends(lambda authorization: authorization)):
+    """Extrae el usuario desde Authorization header (Bearer token)."""
+    # FastAPI simplificado: buscar header manualmente
+    from fastapi import Request
+    request: Request = request  # type: ignore  # placeholder para linter
+    # Este método será reemplazado si se extiende autenticación (por simplicidad no completo aquí).
+    return None
 
 @app.get("/")
 def read_root():
@@ -243,80 +283,48 @@ def obtener_preentrenos(
 
 # ===== ENDPOINTS DE USUARIOS (SÚPER SIMPLES) =====
 
-@app.post("/api/register")
-def registrar_usuario(usuario: Usuario):
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    # Verificar si el email ya existe
-    cursor.execute("SELECT * FROM usuarios WHERE email = ?", (usuario.email,))
-    existe = cursor.fetchone()
-    
-    if existe:
-        conn.close()
-        return {"success": False, "error": "Email ya registrado"}
-    
-    # Insertar usuario
-    cursor.execute(
-        "INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)",
-        (usuario.nombre, usuario.email, usuario.password)
-    )
-    conn.commit()
-    usuario_id = cursor.lastrowid
-    conn.close()
-    
-    return {
-        "success": True,
-        "usuario": {
-            "id": usuario_id,
-            "nombre": usuario.nombre,
-            "email": usuario.email
-        }
-    }
+@app.post("/api/v1/auth/register", response_model=UserOut)
+def register(usuario: RegisterIn):
+    """Registrar usuario con password hasheado."""
+    with get_db() as conn:
+        # Verificar email existente
+        result = conn.execute(text("SELECT id FROM usuarios WHERE email = :email"), {"email": usuario.email}).first()
+        if result:
+            raise HTTPException(status_code=400, detail="Email ya registrado")
+        hashed = hash_password(usuario.password)
+        conn.execute(
+            text("INSERT INTO usuarios (nombre, email, password) VALUES (:nombre, :email, :password)"),
+            {"nombre": usuario.nombre, "email": usuario.email, "password": hashed}
+        )
+        # Recuperar ID
+        new_row = conn.execute(text("SELECT id, nombre, email FROM usuarios WHERE email = :email"), {"email": usuario.email}).first()
+        return UserOut(id=new_row.id, nombre=new_row.nombre, email=new_row.email)
 
-@app.post("/api/login")
-def login(datos: Login):
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    # Buscar usuario
-    cursor.execute(
-        "SELECT * FROM usuarios WHERE email = ? AND password = ?",
-        (datos.email, datos.password)
-    )
-    usuario = cursor.fetchone()
-    conn.close()
-    
-    if not usuario:
-        return {"success": False, "error": "Email o contraseña incorrectos"}
-    
-    return {
-        "success": True,
-        "usuario": {
-            "id": usuario["id"],
-            "nombre": usuario["nombre"],
-            "email": usuario["email"]
-        }
-    }
+@app.post("/api/register", response_model=UserOut)
+def register_legacy(usuario: RegisterIn):
+    """Alias legacy sin versión."""
+    return register(usuario)
 
-@app.get("/api/usuario/{usuario_id}")
+@app.post("/api/v1/auth/login", response_model=TokenOut)
+def login(datos: LoginIn):
+    with get_db() as conn:
+        row = conn.execute(text("SELECT id, nombre, email, password FROM usuarios WHERE email = :email"), {"email": datos.email}).first()
+        if not row or not verify_password(datos.password, row.password):
+            raise HTTPException(status_code=401, detail="Credenciales inválidas")
+        token = create_access_token({"sub": str(row.id), "email": row.email})
+        return TokenOut(access_token=token)
+
+@app.post("/api/login", response_model=TokenOut)
+def login_legacy(datos: LoginIn):
+    """Alias legacy sin versión."""
+    return login(datos)
+
+@app.get("/api/v1/auth/users/{usuario_id}", response_model=UserOut)
 def obtener_usuario(usuario_id: int):
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT * FROM usuarios WHERE id = ?", (usuario_id,))
-    usuario = cursor.fetchone()
-    conn.close()
-    
-    if not usuario:
-        return {"success": False, "error": "Usuario no encontrado"}
-    
-    return {
-        "success": True,
-        "usuario": {
-            "id": usuario["id"],
-            "nombre": usuario["nombre"],
-            "email": usuario["email"]
-        }
-    }
+    with get_db() as conn:
+        row = conn.execute(text("SELECT id, nombre, email FROM usuarios WHERE id = :id"), {"id": usuario_id}).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        return UserOut(id=row.id, nombre=row.nombre, email=row.email)
+
 
