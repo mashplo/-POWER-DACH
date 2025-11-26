@@ -13,6 +13,7 @@ fastapi = "^0.119.0"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
 httpx = "^0.27.0"
+requests = "^2.31.0"
 
 [tool.poetry.scripts]
 start = "backend.runner:ejecutar_api"
