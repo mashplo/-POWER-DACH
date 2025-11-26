@@ -225,8 +225,9 @@ def obtener_preentrenos(
 @app.post("/api/v1/auth/register", response_model=UserOut)
 def register(usuario: RegisterIn):
     """Registrar usuario con password hasheado."""
-    with get_db() as conn:
-        # Verificar email existente
+    # Usar transacción explícita para asegurar persistencia (commit) en cualquier motor
+    # engine.begin() hace commit automático al salir si no hay excepciones
+    with engine.begin() as conn:
         result = conn.execute(text("SELECT id FROM usuarios WHERE email = :email"), {"email": usuario.email}).first()
         if result:
             raise HTTPException(status_code=400, detail="Email ya registrado")
@@ -235,8 +236,9 @@ def register(usuario: RegisterIn):
             text("INSERT INTO usuarios (nombre, email, password) VALUES (:nombre, :email, :password)"),
             {"nombre": usuario.nombre, "email": usuario.email, "password": hashed}
         )
-        # Recuperar ID
         new_row = conn.execute(text("SELECT id, nombre, email FROM usuarios WHERE email = :email"), {"email": usuario.email}).first()
+        if not new_row:
+            raise HTTPException(status_code=500, detail="Error creando usuario")
         return UserOut(id=new_row.id, nombre=new_row.nombre, email=new_row.email)
 
 @app.post("/api/register", response_model=UserOut)
