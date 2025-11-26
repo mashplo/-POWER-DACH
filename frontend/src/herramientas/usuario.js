@@ -1,4 +1,5 @@
-const API_URL = 'http://localhost:8000/api'
+import { API_BASE_URL } from './config.js';
+const API_URL = API_BASE_URL ? `${API_BASE_URL}/api` : null; // Reservado para futura integración real
 
 export async function getUsuario(id) {
     const usuarioActual = localStorage.getItem("usuarioActual")

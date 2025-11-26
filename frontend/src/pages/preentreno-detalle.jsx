@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../herramientas/config";
 import { useState, useEffect } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
@@ -12,9 +13,8 @@ export default function PreentrenoDetalle() {
   useEffect(() => {
     const obtenerPreentreno = async () => {
       try {
-        const response = await fetch(
-          "http://127.0.0.1:8000/api/v1/preentrenos"
-        );
+        if (!API_BASE_URL) return;
+        const response = await fetch(`${API_BASE_URL}/api/v1/preentrenos`);
         const data = await response.json();
         const preentrenoEncontrado = data.find((p) => p.id === parseInt(id));
         setPreentreno(preentrenoEncontrado);

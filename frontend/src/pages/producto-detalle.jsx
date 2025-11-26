@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "../herramientas/config";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
@@ -16,7 +17,8 @@ export default function ProductoDetalle() {
   useEffect(() => {
     const fetchProducto = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/v1/products");
+        if (!API_BASE_URL) return;
+        const response = await fetch(`${API_BASE_URL}/api/v1/products`);
         const productos = await response.json();
         const productoEncontrado = productos.find((p) => p.id === parseInt(id));
         setProducto(productoEncontrado);

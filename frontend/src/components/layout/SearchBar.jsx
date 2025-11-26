@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { API_BASE_URL } from "../../herramientas/config";
 import { Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -16,10 +17,15 @@ export default function SearchBar() {
     const cargarProductos = async () => {
       try {
         console.log("Cargando productos para búsqueda...");
+        if (!API_BASE_URL) {
+          console.warn('API_BASE_URL no configurada, omitiendo carga de productos en producción.');
+          return;
+        }
+        const base = API_BASE_URL;
         const [proteinasRes, creatinasRes, preentrenosRes] = await Promise.all([
-          fetch("http://127.0.0.1:8000/api/v1/products"),
-          fetch("http://127.0.0.1:8000/api/v1/creatinas"),
-          fetch("http://127.0.0.1:8000/api/v1/preentrenos"),
+          fetch(`${base}/api/v1/products`),
+          fetch(`${base}/api/v1/creatinas`),
+          fetch(`${base}/api/v1/preentrenos`),
         ]);
 
         if (!proteinasRes.ok || !creatinasRes.ok || !preentrenosRes.ok) {

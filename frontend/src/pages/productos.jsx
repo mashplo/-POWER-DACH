@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { fetchProteinaData, fetchCreatinaData } from "../herramientas/api";
+import { API_BASE_URL } from "../herramientas/config";
 import ProteinaCard from "../components/proteina/card";
 import CreatinaCard from "../components/creatina/card";
 import PreentrenoCard from "../components/preentreno/card";
@@ -60,11 +61,13 @@ export default function ProductosPage() {
           if (backendFilters.min_price) queryParams.append("min_price", backendFilters.min_price);
           if (backendFilters.max_price) queryParams.append("max_price", backendFilters.max_price);
           
-          const url = queryParams.toString()
-            ? `http://localhost:8000/api/v1/preentrenos?${queryParams.toString()}`
-            : "http://localhost:8000/api/v1/preentrenos";
-            
-          const response = await fetch(url);
+          if (!API_BASE_URL) {
+            console.warn('API_BASE_URL no configurada, saltando preentrenos.');
+          } else {
+            const url = queryParams.toString()
+              ? `${API_BASE_URL}/api/v1/preentrenos?${queryParams.toString()}`
+              : `${API_BASE_URL}/api/v1/preentrenos`;
+            const response = await fetch(url);
           if (response.ok) {
             const dataPreentrenos = await response.json();
             setPreentrenos(dataPreentrenos || []);
@@ -74,6 +77,7 @@ export default function ProductosPage() {
               response.status
             );
             setPreentrenos([]);
+          }
           }
         } else {
           setPreentrenos([]);

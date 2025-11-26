@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "../herramientas/config";
 import Card from "../components/creatina/card";
 
 export default function CreatinaShoppingCart() {
@@ -7,7 +8,8 @@ export default function CreatinaShoppingCart() {
   useEffect(() => {
     const obtenerDatos = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/v1/creatinas");
+        if (!API_BASE_URL) return;
+        const response = await fetch(`${API_BASE_URL}/api/v1/creatinas`);
         const data = await response.json();
         setCreatinas(data);
       } catch (error) {

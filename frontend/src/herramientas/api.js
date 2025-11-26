@@ -1,7 +1,7 @@
-// Usar variable de entorno o localhost como fallback
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+import { API_BASE_URL } from './config.js';
 
 export async function fetchProteinaData(filters = {}) {
+  if (!API_BASE_URL) return [];
   const BASE_URL = `${API_BASE_URL}/api/v1/products`;
 
   // Construir query params dinámicamente
@@ -36,6 +36,7 @@ export async function fetchProteinaData(filters = {}) {
 }
 
 export async function fetchCreatinaData(filters = {}) {
+  if (!API_BASE_URL) return [];
   const BASE_URL = `${API_BASE_URL}/api/v1/creatinas`;
 
   // Construir query params dinámicamente
@@ -66,6 +67,7 @@ export async function fetchCreatinaData(filters = {}) {
 }
 
 export async function fetchPreentrenoData(filters = {}) {
+  if (!API_BASE_URL) return [];
   const BASE_URL = `${API_BASE_URL}/api/v1/preentrenos`;
 
   // Construir query params dinámicamente
