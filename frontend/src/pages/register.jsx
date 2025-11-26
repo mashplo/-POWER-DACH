@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Eye, EyeOff } from "lucide-react"
 import { registrarUsuario } from "../herramientas/usuario"
 
 export default function Register() {
@@ -9,6 +10,8 @@ export default function Register() {
     confirmPassword: ""
   })
   const [error, setError] = useState("")
+  const [mostrarPassword, setMostrarPassword] = useState(false)
+  const [mostrarConfirmPassword, setMostrarConfirmPassword] = useState(false)
 
   const handleChange = (e) => {
     setFormData({
@@ -92,28 +95,46 @@ export default function Register() {
               <label className="label">
                 <span className="label-text">Contraseña</span>
               </label>
-              <input 
-                type="password" 
-                name="password"
-                className="input input-bordered w-full" 
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Mínimo 4 caracteres"
-              />
+              <div className="relative">
+                <input 
+                  type={mostrarPassword ? "text" : "password"}
+                  name="password"
+                  className="input input-bordered w-full pr-10" 
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Mínimo 4 caracteres"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarPassword(!mostrarPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {mostrarPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
 
             <div className="form-control mb-4">
               <label className="label">
                 <span className="label-text">Confirmar Contraseña</span>
               </label>
-              <input 
-                type="password" 
-                name="confirmPassword"
-                className="input input-bordered w-full" 
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                placeholder="Repite tu contraseña"
-              />
+              <div className="relative">
+                <input 
+                  type={mostrarConfirmPassword ? "text" : "password"}
+                  name="confirmPassword"
+                  className="input input-bordered w-full pr-10" 
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="Repite tu contraseña"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarConfirmPassword(!mostrarConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {mostrarConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
 
             {error && (
