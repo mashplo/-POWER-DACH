@@ -39,25 +39,37 @@ def read_root():
 # ===== ENDPOINTS DE PROTEÍNAS =====
 
 @app.get("/api/v1/products")
-def obtener_proteinas():
+def obtener_proteinas(min_price: float | None = None):
+    """Obtener lista de proteínas, opcionalmente filtradas por precio mínimo.
+
+    Query Params:
+    - min_price: filtra productos con precio estrictamente mayor a este valor.
+    """
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM productos")
+    base_query = "SELECT * FROM productos"
+    params: list = []
+    if min_price is not None:
+        base_query += " WHERE price > ?"
+        params.append(min_price)
+    cursor.execute(base_query, params)
     productos = cursor.fetchall()
     conn.close()
-    
-    # Formatear productos para que coincidan con el formato del API fake
+
     productos_formateados = []
     for producto in productos:
         producto_dict = dict(producto)
-        # Convertir images de string a array
         if "images" in producto_dict and producto_dict["images"]:
             producto_dict["images"] = producto_dict["images"].split(",")
         else:
             producto_dict["images"] = []
         productos_formateados.append(producto_dict)
-    
     return productos_formateados
+
+@app.get("/api/products")
+def obtener_proteinas_alias(min_price: float | None = None):
+    """Alias sin versión para compatibilidad con frontend (misma lógica)."""
+    return obtener_proteinas(min_price)
 
 # ===== ENDPOINTS DE CREATINAS =====
 
