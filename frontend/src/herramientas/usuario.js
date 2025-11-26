@@ -1,5 +1,8 @@
 import { API_BASE_URL } from './config.js';
-const API_URL = API_BASE_URL ? `${API_BASE_URL}/api` : null; // Reservado para futura integración real
+// Endpoints reales (FastAPI ya expone /api/v1/auth/*)
+const REGISTER_URL = API_BASE_URL ? `${API_BASE_URL}/api/v1/auth/register` : null;
+const LOGIN_URL = API_BASE_URL ? `${API_BASE_URL}/api/v1/auth/login` : null;
+const ME_URL = API_BASE_URL ? `${API_BASE_URL}/api/v1/auth/me` : null;
 
 export async function getUsuario(id) {
     const usuarioActual = localStorage.getItem("usuarioActual")
@@ -24,62 +27,80 @@ export async function getCarrito(id) {
 }
 
 export async function registrarUsuario(nombre, email, password) {
-    // Usar localStorage mientras no tengamos backend de usuarios
-    const usuarios = localStorage.getItem("usuarios")
-        ? JSON.parse(localStorage.getItem("usuarios"))
-        : [];
-
-    // Verificar si el email ya existe
-    const usuarioExistente = usuarios.find((u) => u.email === email);
-    if (usuarioExistente) {
-        return { success: false, error: "El email ya está registrado" };
+    // Si no hay backend configurado, usar fallback localStorage
+    if (!REGISTER_URL) {
+        const usuarios = localStorage.getItem("usuarios")
+            ? JSON.parse(localStorage.getItem("usuarios"))
+            : [];
+        const usuarioExistente = usuarios.find((u) => u.email === email);
+        if (usuarioExistente) {
+            return { success: false, error: "El email ya está registrado" };
+        }
+        const nuevoUsuario = { id: Date.now(), nombre, email, password, fechaRegistro: new Date().toISOString() };
+        usuarios.push(nuevoUsuario);
+        localStorage.setItem("usuarios", JSON.stringify(usuarios));
+        return { success: true, message: "Usuario registrado (local)", usuario: nuevoUsuario };
     }
-
-    const nuevoUsuario = {
-        id: Date.now(),
-        nombre: nombre,
-        email: email,
-        password: password, // En producción esto debería estar hasheado
-        fechaRegistro: new Date().toISOString(),
-    };
-
-    usuarios.push(nuevoUsuario);
-    localStorage.setItem("usuarios", JSON.stringify(usuarios));
-
-    return {
-        success: true,
-        message: "Usuario registrado exitosamente",
-        usuario: nuevoUsuario,
-    };
+    try {
+        const resp = await fetch(REGISTER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, email, password })
+        });
+        if (!resp.ok) {
+            const dataErr = await resp.json().catch(() => ({}));
+            return { success: false, error: dataErr.detail || 'Error en registro' };
+        }
+        const user = await resp.json();
+        // No se devuelve token en register; dejamos que el usuario inicie sesión separado
+        return { success: true, message: 'Usuario registrado en backend', usuario: user };
+    } catch (e) {
+        return { success: false, error: 'Fallo de conexión al registrar' };
+    }
 }
 
 export async function loginUsuario(email, password) {
-    // Usar localStorage mientras no tengamos backend de usuarios
-    const usuarios = localStorage.getItem("usuarios")
-        ? JSON.parse(localStorage.getItem("usuarios"))
-        : [];
-
-    // Buscar usuario por email y password
-    const usuario = usuarios.find(
-        (u) => u.email === email && u.password === password
-    );
-
-    if (!usuario) {
-        return { success: false, error: "Email o contraseña incorrectos" };
+    if (!LOGIN_URL) {
+        const usuarios = localStorage.getItem("usuarios")
+            ? JSON.parse(localStorage.getItem("usuarios"))
+            : [];
+        const usuario = usuarios.find((u) => u.email === email && u.password === password);
+        if (!usuario) return { success: false, error: 'Email o contraseña incorrectos (local)' };
+        localStorage.setItem('usuarioActual', JSON.stringify(usuario));
+        return { success: true, message: 'Sesión local iniciada', usuario };
     }
-
-    // Guardar sesión actual
-    localStorage.setItem("usuarioActual", JSON.stringify(usuario));
-
-    return {
-        success: true,
-        message: "Sesión iniciada exitosamente",
-        usuario: usuario,
-    };
+    try {
+        // Solicitar token
+        const resp = await fetch(LOGIN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        if (!resp.ok) {
+            const dataErr = await resp.json().catch(() => ({}));
+            return { success: false, error: dataErr.detail || 'Credenciales inválidas' };
+        }
+        const tokenData = await resp.json();
+        const token = tokenData.access_token;
+        // Obtener datos del usuario
+        const meResp = await fetch(ME_URL, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!meResp.ok) {
+            return { success: false, error: 'No se pudo obtener perfil' };
+        }
+        const user = await meResp.json();
+        localStorage.setItem('auth_token', token);
+        localStorage.setItem('usuarioActual', JSON.stringify(user));
+        return { success: true, message: 'Sesión iniciada', usuario: user, token };
+    } catch (e) {
+        return { success: false, error: 'Fallo de conexión al iniciar sesión' };
+    }
 }
 
 export async function cerrarSesion() {
     localStorage.removeItem("usuarioActual");
+    localStorage.removeItem("auth_token");
     return { success: true, message: "Sesión cerrada" };
 }
 

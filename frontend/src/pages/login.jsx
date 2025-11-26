@@ -22,7 +22,6 @@ export default function Login() {
       const resultado = await loginUsuario(email, password)
       
       if (resultado.success) {
-        localStorage.setItem("usuarioActual", JSON.stringify(resultado.usuario))
         alert("Login exitoso!")
         window.location.href = "/profile"
       } else {
