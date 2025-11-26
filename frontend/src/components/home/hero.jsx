@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom"
+
 export default function Hero() {
     return (
         <section className="relative min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat" 
@@ -14,9 +16,9 @@ export default function Hero() {
                     Encuentra todo lo que necesitas para tu entrenamiento. 
                     Calidad profesional al mejor precio.
                 </p>
-                <a href="/proteina" className="btn btn-primary btn-lg">
+                <Link to="/proteina" className="btn btn-primary btn-lg">
                     Ver proteina
-                </a>
+                </Link>
             </div>
         </section>
     )
