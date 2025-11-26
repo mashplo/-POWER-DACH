@@ -12,7 +12,20 @@ FALLBACK_SQLITE_URL = "sqlite:///proteinas.db"
 # Usar MySQL si está configurado, sino SQLite local
 db_url = DATABASE_URL if DATABASE_URL else FALLBACK_SQLITE_URL
 
-print(f"📊 Usando base de datos: {db_url.split('@')[0] if '@' in db_url else db_url}")
+if '@' in db_url:
+    prefix = db_url.split('@')[0]
+    # Ej: mysql+pymysql://root:password -> ocultar password
+    if '://' in prefix and ':' in prefix.rsplit('/',1)[-1]:
+        creds_part = prefix.split('://',1)[1]
+        if ':' in creds_part:
+            user = creds_part.split(':',1)[0]
+            print(f"📊 Usando base de datos: {db_url.split('://',1)[0]}://{user}:****@...")
+        else:
+            print(f"📊 Usando base de datos: {db_url.split('://',1)[0]}://{creds_part}@...")
+    else:
+        print("📊 Usando base de datos (credenciales ocultas)")
+else:
+    print(f"📊 Usando base de datos: {db_url}")
 
 # Crear engine
 engine = create_engine(db_url, echo=False)
