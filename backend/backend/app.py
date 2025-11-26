@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from backend.database import get_db, inicializar_db
+from backend.database import get_db, inicializar_db, metadata, engine
 import os
 
 app = FastAPI()
@@ -35,6 +35,34 @@ class Login(BaseModel):
 @app.get("/")
 def read_root():
     return {"mensaje": "API de Proteinas - Proyecto Universitario"}
+
+@app.get("/api/v1/init-db")
+def inicializar_tablas():
+    """
+    Endpoint para inicializar las tablas en Railway MySQL.
+    Solo ejecutar una vez al desplegar.
+    """
+    try:
+        metadata.create_all(engine)
+        
+        # Verificar tablas creadas
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            result = conn.execute(
+                text("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()")
+            )
+            tables = [row[0] for row in result]
+        
+        return {
+            "status": "success",
+            "mensaje": "Tablas creadas exitosamente",
+            "tablas": tables
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "mensaje": str(e)
+        }
 
 # ===== ENDPOINTS DE PROTEÍNAS =====
 

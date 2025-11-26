@@ -1,21 +1,19 @@
 """
-Configuración de base de datos con SQLAlchemy.
-Soporta MySQL (Railway) y SQLite (local development).
+Script para inicializar las tablas en Railway MySQL.
+Ejecutar: python init_railway_db.py
 """
 import os
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Float, Text
 
-# Configurar DATABASE_URL
-DATABASE_URL = os.getenv("DATABASE_URL")
-FALLBACK_SQLITE_URL = "sqlite:///proteinas.db"
+# Credenciales de Railway MySQL
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "mysql+pymysql://root:gtUvNuzREiIaLwZvgspAXRxFLaKLsvSu@mysql.railway.internal:3306/railway"
+)
 
-# Usar MySQL si está configurado, sino SQLite local
-db_url = DATABASE_URL if DATABASE_URL else FALLBACK_SQLITE_URL
+print(f"Conectando a: {DATABASE_URL.replace(':gtUvNuzREiIaLwZvgspAXRxFLaKLsvSu@', ':****@')}")
 
-print(f"📊 Usando base de datos: {db_url.split('@')[0] if '@' in db_url else db_url}")
-
-# Crear engine
-engine = create_engine(db_url, echo=False)
+engine = create_engine(DATABASE_URL, echo=True)
 metadata = MetaData()
 
 # Definir tabla productos
@@ -64,15 +62,29 @@ usuarios = Table(
     Column('password', String(255), nullable=False)
 )
 
-def get_conn():
-    """Obtener una conexión a la base de datos."""
-    return engine.connect()
-
-def get_db():
-    """Alias para compatibilidad con código existente."""
-    return get_conn()
-
-def inicializar_db():
-    """Crear todas las tablas si no existen."""
-    metadata.create_all(engine)
-    print("✅ Tablas inicializadas correctamente")
+if __name__ == "__main__":
+    try:
+        print("\n🔧 Creando tablas en Railway MySQL...")
+        metadata.create_all(engine)
+        print("\n✅ ¡Tablas creadas exitosamente!")
+        print("\nTablas creadas:")
+        print("  - productos")
+        print("  - creatinas")
+        print("  - preentrenos")
+        print("  - usuarios")
+        
+        # Verificar tablas
+        print("\n🔍 Verificando tablas...")
+        with engine.connect() as conn:
+            result = conn.execute(
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'railway'"
+            )
+            tables = [row[0] for row in result]
+            print(f"\nTablas en la base de datos: {tables}")
+            
+    except Exception as e:
+        print(f"\n❌ Error al crear tablas: {e}")
+        print("\nVerifica que:")
+        print("1. La variable DATABASE_URL esté configurada correctamente")
+        print("2. Tengas acceso a la base de datos de Railway")
+        print("3. Las credenciales sean correctas")
