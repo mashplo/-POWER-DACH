@@ -6,7 +6,7 @@ authors = ["techatlasdev <srgoqui@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.13"
+python = "^3.12"
 uvicorn = "^0.38.0"
 fastapi = "^0.119.0"
 
