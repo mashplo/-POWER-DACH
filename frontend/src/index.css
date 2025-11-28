@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+    themes: bumblebee --default
+}
+
+/* Product card image styling - uniform sizes */
+.card-image {
+    width: 100%;
+    height: 250px;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 0.5rem 0.5rem 0 0;
+}
