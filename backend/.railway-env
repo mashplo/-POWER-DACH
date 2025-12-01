@@ -1,0 +1,113 @@
+# Variables de Entorno para Railway
+
+## Configuración Backend (Servicio Backend)
+
+Añade estas variables en tu servicio backend de Railway:
+
+```bash
+# Conexión MySQL (REQUERIDA)
+DATABASE_URL=mysql+pymysql://root:gtUvNuzREiIaLwZvgspAXRxFLaKLsvSu@mysql.railway.internal:3306/railway
+
+# Puerto (Railway lo asigna automáticamente, NO configurar)
+# PORT se asigna automáticamente por Railway
+
+# Opcional: habilitar reload en desarrollo (NO usar en producción)
+# RELOAD=false
+```
+
+## ⚠️ IMPORTANTE
+
+1. **NO CAMBIES** el host `mysql.railway.internal` - es la red interna de Railway
+2. Railway asigna el puerto automáticamente mediante `$PORT`
+3. La contraseña ya está incluida en el DATABASE_URL
+
+## 🚀 Pasos para Deploy
+
+### 1. Configurar Variables en Railway
+
+1. Ve a tu proyecto en Railway
+2. Selecciona el servicio **Backend**
+3. Ve a **Variables** tab
+4. Añade una nueva variable:
+   - **Key**: `DATABASE_URL`
+   - **Value**: `mysql+pymysql://root:gtUvNuzREiIaLwZvgspAXRxFLaKLsvSu@mysql.railway.internal:3306/railway`
+5. Guarda los cambios
+
+### 2. Configurar Root Directory
+
+Si tu backend está en una subcarpeta:
+1. Ve a **Settings** del servicio backend
+2. En **Root Directory** pon: `backend`
+3. Guarda cambios
+
+### 3. Deploy Automático
+
+Railway desplegará automáticamente cuando detecte los cambios en GitHub.
+
+### 4. Migrar Datos (OPCIONAL)
+
+Si quieres migrar tus datos actuales de SQLite local a MySQL:
+
+```powershell
+# Configurar DATABASE_URL temporalmente para la migración
+$env:DATABASE_URL="mysql+pymysql://root:gtUvNuzREiIaLwZvgspAXRxFLaKLsvSu@mysql.railway.internal:3306/railway"
+
+# Ejecutar script de migración
+python migrate_to_mysql.py
+```
+
+**Nota**: Solo ejecuta esto desde un entorno que pueda acceder a la red interna de Railway (no funcionará desde tu máquina local a menos que uses Railway CLI con port forwarding).
+
+### 5. Verificar Deploy
+
+Una vez desplegado:
+1. Railway te dará una URL pública: `https://tu-proyecto.up.railway.app`
+2. Prueba los endpoints:
+   - `GET /` - Verificar que la API responde
+   - `GET /api/v1/products` - Lista de productos
+   - `GET /api/v1/creatinas` - Lista de creatinas
+   - `GET /api/v1/preentrenos` - Lista de pre-entrenos
+
+## 📝 Formato DATABASE_URL
+
+```
+mysql+pymysql://[usuario]:[contraseña]@[host]:[puerto]/[database]
+```
+
+Desglose de tu configuración:
+- **Usuario**: `root`
+- **Contraseña**: `gtUvNuzREiIaLwZvgspAXRxFLaKLsvSu`
+- **Host**: `mysql.railway.internal` (red interna Railway)
+- **Puerto**: `3306` (puerto estándar MySQL)
+- **Database**: `railway`
+
+## 🔧 Troubleshooting
+
+### Error: "Can't connect to MySQL server"
+- Verifica que el servicio MySQL esté corriendo en Railway
+- Confirma que ambos servicios (backend y MySQL) están en el mismo proyecto
+- Usa `mysql.railway.internal` (no la URL pública del MySQL)
+
+### Error: "Access denied for user"
+- Verifica que la contraseña en DATABASE_URL sea correcta
+- No debe haber espacios al principio o final de la variable
+
+### Tablas no existen
+- Las tablas se crean automáticamente al iniciar la app
+- Verifica los logs en Railway para ver si hay errores de conexión
+- Si persiste, ejecuta el script de migración o seed
+
+## 🔐 Seguridad
+
+⚠️ **NO COMPARTAS** estas credenciales públicamente. Si este archivo se sube a GitHub:
+1. Asegúrate de que el repositorio sea privado
+2. O usa variables de entorno en Railway sin hardcodearlas
+3. Considera rotar las credenciales periódicamente desde Railway Dashboard
+
+## 📞 Soporte
+
+Si necesitas regenerar las credenciales:
+1. Ve a tu servicio MySQL en Railway
+2. **Variables** tab
+3. Regenera las credenciales desde ahí
+4. Actualiza el DATABASE_URL en el servicio backend

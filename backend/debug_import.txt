@@ -1,0 +1,11 @@
+CWD: C:\Users\josen\OneDrive\Desktop\-POWER-DACH-master (4)\-POWER-DACH-master\backend
+sys.path:
+  C:\Users\josen\OneDrive\Desktop\-POWER-DACH-master (4)\-POWER-DACH-master\backend
+  C:\Users\josen\AppData\Local\Python\pythoncore-3.14-64\python314.zip
+  C:\Users\josen\AppData\Local\Python\pythoncore-3.14-64\DLLs
+  C:\Users\josen\AppData\Local\Python\pythoncore-3.14-64\Lib
+  C:\Users\josen\AppData\Local\Python\pythoncore-3.14-64
+  C:\Users\josen\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages
+
+backend file: C:\Users\josen\OneDrive\Desktop\-POWER-DACH-master (4)\-POWER-DACH-master\backend\backend\__init__.py
+backend.app file: C:\Users\josen\OneDrive\Desktop\-POWER-DACH-master (4)\-POWER-DACH-master\backend\backend\app.py

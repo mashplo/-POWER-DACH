@@ -1,0 +1,144 @@
+{
+  "detail": [
+    {
+      "type": "missing",
+      "loc": [
+        "body",
+        "title"
+      ],
+      "msg": "Field required",
+      "input": {
+        "user_id": 2,
+        "total": 150.0,
+        "items": [
+          {
+            "product_id": 1,
+            "product_type": "productos",
+            "quantity": 2,
+            "price": 50.0,
+            "title": "Prote\u00edna Whey"
+          },
+          {
+            "product_id": 3,
+            "product_type": "creatinas",
+            "quantity": 1,
+            "price": 50.0,
+            "title": "Creatina Monohidrato"
+          }
+        ]
+      }
+    },
+    {
+      "type": "missing",
+      "loc": [
+        "body",
+        "description"
+      ],
+      "msg": "Field required",
+      "input": {
+        "user_id": 2,
+        "total": 150.0,
+        "items": [
+          {
+            "product_id": 1,
+            "product_type": "productos",
+            "quantity": 2,
+            "price": 50.0,
+            "title": "Prote\u00edna Whey"
+          },
+          {
+            "product_id": 3,
+            "product_type": "creatinas",
+            "quantity": 1,
+            "price": 50.0,
+            "title": "Creatina Monohidrato"
+          }
+        ]
+      }
+    },
+    {
+      "type": "missing",
+      "loc": [
+        "body",
+        "price"
+      ],
+      "msg": "Field required",
+      "input": {
+        "user_id": 2,
+        "total": 150.0,
+        "items": [
+          {
+            "product_id": 1,
+            "product_type": "productos",
+            "quantity": 2,
+            "price": 50.0,
+            "title": "Prote\u00edna Whey"
+          },
+          {
+            "product_id": 3,
+            "product_type": "creatinas",
+            "quantity": 1,
+            "price": 50.0,
+            "title": "Creatina Monohidrato"
+          }
+        ]
+      }
+    },
+    {
+      "type": "missing",
+      "loc": [
+        "body",
+        "images"
+      ],
+      "msg": "Field required",
+      "input": {
+        "user_id": 2,
+        "total": 150.0,
+        "items": [
+          {
+            "product_id": 1,
+            "product_type": "productos",
+            "quantity": 2,
+            "price": 50.0,
+            "title": "Prote\u00edna Whey"
+          },
+          {
+            "product_id": 3,
+            "product_type": "creatinas",
+            "quantity": 1,
+            "price": 50.0,
+            "title": "Creatina Monohidrato"
+          }
+        ]
+      }
+    },
+    {
+      "type": "missing",
+      "loc": [
+        "body",
+        "category"
+      ],
+      "msg": "Field required",
+      "input": {
+        "user_id": 2,
+        "total": 150.0,
+        "items": [
+          {
+            "product_id": 1,
+            "product_type": "productos",
+            "quantity": 2,
+            "price": 50.0,
+            "title": "Prote\u00edna Whey"
+          },
+          {
+            "product_id": 3,
+            "product_type": "creatinas",
+            "quantity": 1,
+            "price": 50.0,
+            "title": "Creatina Monohidrato"
+          }
+        ]
+      }
+    }
+  ]
+}
