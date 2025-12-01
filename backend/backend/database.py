@@ -74,6 +74,7 @@ usuarios = Table(
     Column('id', Integer, primary_key=True, autoincrement=True),
     Column('nombre', String(255), nullable=False),
     Column('email', String(255), nullable=False, unique=True),
+<<<<<<< HEAD
     Column('password', String(255), nullable=False),
     Column('role', String(50), nullable=False, server_default='user')
 )
@@ -99,6 +100,9 @@ boleta_items = Table(
     Column('product_title', String(255), nullable=False),
     Column('quantity', Integer, nullable=False),
     Column('price', Float, nullable=False)
+=======
+    Column('password', String(255), nullable=False)
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 )
 
 def get_conn():

@@ -7,7 +7,11 @@ except ImportError:
     # Fallback si email-validator no está instalado todavía en el entorno
     from pydantic import BaseModel
     EmailStr = str  # type: ignore
+<<<<<<< HEAD
 from backend.database import get_db, inicializar_db, metadata, engine, usuarios, productos, creatinas, preentrenos, boletas, boleta_items
+=======
+from backend.database import get_db, inicializar_db, metadata, engine, usuarios, productos, creatinas, preentrenos
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 from sqlalchemy import text, select, and_
 from passlib.context import CryptContext
 from jose import jwt, JWTError
@@ -17,6 +21,7 @@ import os
 
 app = FastAPI()
 
+<<<<<<< HEAD
 # IMPORTANTE: El middleware CORS debe agregarse ANTES de montar archivos estáticos
 # Configurar CORS para que el frontend pueda acceder
 # No se puede usar allow_origins=["*"] con allow_credentials=True
@@ -28,12 +33,22 @@ app.add_middleware(
         "http://127.0.0.1:5173",  # Alternativa localhost
         "http://localhost:3000",  # Por si usas otro puerto
     ],
+=======
+# Configurar CORS para que el frontend pueda acceder
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+<<<<<<< HEAD
 # Servir archivos estáticos (imágenes) - DESPUÉS del middleware CORS
+=======
+# Servir archivos estáticos (imágenes)
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 assets_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
 app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
 
@@ -53,12 +68,16 @@ class UserOut(BaseModel):
     id: int
     nombre: str
     email: EmailStr
+<<<<<<< HEAD
     role: str = "user"
+=======
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 
 class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
+<<<<<<< HEAD
 class BoletaItemIn(BaseModel):
     product_id: int
     product_type: str
@@ -88,11 +107,16 @@ class UserUpdate(BaseModel):
 # pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") # REMOVED due to incompatibility
 import bcrypt
 
+=======
+# Seguridad básica
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_hex(32))
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 def hash_password(password: str) -> str:
+<<<<<<< HEAD
     try:
         # Bcrypt tiene un límite de 72 bytes - truncar si es necesario
         encoded = password.encode('utf-8')
@@ -128,6 +152,12 @@ def verify_password(plain: str, hashed: str) -> bool:
         # Si hay cualquier error en la verificación, retornar False
         print(f"Error verificando password: {e}")
         return False
+=======
+    return pwd_context.hash(password)
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return pwd_context.verify(plain, hashed)
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
@@ -146,10 +176,17 @@ def get_current_user(request: Request):
     except (JWTError, ValueError):
         raise HTTPException(status_code=401, detail="Token inválido")
     with get_db() as conn:
+<<<<<<< HEAD
         row = conn.execute(text("SELECT id, nombre, email, role FROM usuarios WHERE id = :id"), {"id": user_id}).first()
         if not row:
             raise HTTPException(status_code=404, detail="Usuario no existe")
         return {"id": row.id, "nombre": row.nombre, "email": row.email, "role": row.role}
+=======
+        row = conn.execute(text("SELECT id, nombre, email FROM usuarios WHERE id = :id"), {"id": user_id}).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Usuario no existe")
+        return {"id": row.id, "nombre": row.nombre, "email": row.email}
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 
 @app.get("/")
 def read_root():
@@ -291,16 +328,20 @@ def obtener_preentrenos(
 @app.post("/api/v1/auth/register", response_model=UserOut)
 def register(usuario: RegisterIn):
     """Registrar usuario con password hasheado."""
+<<<<<<< HEAD
     # Validar longitud del password para bcrypt (72 bytes max)
     if len(usuario.password.encode('utf-8')) > 72:
         raise HTTPException(status_code=400, detail="Password demasiado largo (máximo 72 caracteres)")
     
+=======
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
     # Usar transacción explícita para asegurar persistencia (commit) en cualquier motor
     # engine.begin() hace commit automático al salir si no hay excepciones
     with engine.begin() as conn:
         result = conn.execute(text("SELECT id FROM usuarios WHERE email = :email"), {"email": usuario.email}).first()
         if result:
             raise HTTPException(status_code=400, detail="Email ya registrado")
+<<<<<<< HEAD
         
         hashed = hash_password(usuario.password)
         try:
@@ -316,6 +357,17 @@ def register(usuario: RegisterIn):
         if not new_row:
             raise HTTPException(status_code=500, detail="Error creando usuario")
         return UserOut(id=new_row.id, nombre=new_row.nombre, email=new_row.email, role=new_row.role)
+=======
+        hashed = hash_password(usuario.password)
+        conn.execute(
+            text("INSERT INTO usuarios (nombre, email, password) VALUES (:nombre, :email, :password)"),
+            {"nombre": usuario.nombre, "email": usuario.email, "password": hashed}
+        )
+        new_row = conn.execute(text("SELECT id, nombre, email FROM usuarios WHERE email = :email"), {"email": usuario.email}).first()
+        if not new_row:
+            raise HTTPException(status_code=500, detail="Error creando usuario")
+        return UserOut(id=new_row.id, nombre=new_row.nombre, email=new_row.email)
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 
 @app.post("/api/register", response_model=UserOut)
 def register_legacy(usuario: RegisterIn):
@@ -345,6 +397,7 @@ def obtener_usuario(usuario_id: int):
         return UserOut(id=row.id, nombre=row.nombre, email=row.email)
 
 
+<<<<<<< HEAD
 
 # ===== CRUD USUARIOS =====
 
@@ -474,3 +527,5 @@ if __name__ == "__main__":
     import uvicorn
     print("DEBUG: RUNNING APP.PY DIRECTLY")
     uvicorn.run(app, host="0.0.0.0", port=8000)
+=======
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f

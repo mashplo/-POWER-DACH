@@ -1,22 +1,34 @@
 #!/usr/bin/env python3
 """Script para inicializar la base de datos con proteínas, creatinas y usuarios"""
 
+<<<<<<< HEAD
 from sqlalchemy import text
 from backend.database import inicializar_db, get_db
 from passlib.context import CryptContext
 
 # Configurar bcrypt para hashear contraseñas
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+=======
+from backend.database import inicializar_db, get_db
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 
 # Crear las tablas
 print("Inicializando base de datos...")
 inicializar_db()
 
 conn = get_db()
+<<<<<<< HEAD
 
 # ===== CREAR PROTEÍNAS DE EJEMPLO =====
 result = conn.execute(text("SELECT COUNT(*) FROM productos"))
 count = result.scalar()
+=======
+cursor = conn.cursor()
+
+# ===== CREAR PROTEÍNAS DE EJEMPLO =====
+cursor.execute("SELECT COUNT(*) FROM productos")
+count = cursor.fetchone()[0]
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 
 if count > 0:
     print(f"✓ Ya hay {count} proteínas en la base de datos")
@@ -83,17 +95,35 @@ else:
     ]
     
     for proteina in proteinas:
+<<<<<<< HEAD
         conn.execute(text("""
             INSERT INTO productos (title, description, price, images, category)
             VALUES (:title, :description, :price, :images, :category)
         """), proteina)
+=======
+        cursor.execute("""
+            INSERT INTO productos (title, description, price, images, category)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            proteina["title"],
+            proteina["description"],
+            proteina["price"],
+            proteina["images"],
+            proteina["category"]
+        ))
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
     
     conn.commit()
     print(f"✓ ¡{len(proteinas)} proteínas creadas exitosamente!")
 
 # ===== CREAR CREATINAS DE EJEMPLO =====
+<<<<<<< HEAD
 result = conn.execute(text("SELECT COUNT(*) FROM creatinas"))
 count_creatinas = result.scalar()
+=======
+cursor.execute("SELECT COUNT(*) FROM creatinas")
+count_creatinas = cursor.fetchone()[0]
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 
 if count_creatinas > 0:
     print(f"✓ Ya hay {count_creatinas} creatinas en la base de datos")
@@ -111,14 +141,28 @@ else:
     ]
     
     for creatina in creatinas:
+<<<<<<< HEAD
         conn.execute(text("""
             INSERT INTO creatinas (title, description, price, images, category)
             VALUES (:title, :description, :price, :images, :category)
         """), creatina)
+=======
+        cursor.execute("""
+            INSERT INTO creatinas (title, description, price, images, category)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            creatina["title"],
+            creatina["description"],
+            creatina["price"],
+            creatina["images"],
+            creatina["category"]
+        ))
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
     
     conn.commit()
     print(f"✓ ¡{len(creatinas)} creatina creada exitosamente!")
 
+<<<<<<< HEAD
 # ===== CREAR PREENTRENOS DE EJEMPLO =====
 result = conn.execute(text("SELECT COUNT(*) FROM preentrenos"))
 count_preentrenos = result.scalar()
@@ -164,10 +208,16 @@ else:
 # ===== CREAR USUARIO DE PRUEBA =====
 result = conn.execute(text("SELECT COUNT(*) FROM usuarios"))
 count_usuarios = result.scalar()
+=======
+# ===== CREAR USUARIO DE PRUEBA =====
+cursor.execute("SELECT COUNT(*) FROM usuarios")
+count_usuarios = cursor.fetchone()[0]
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 
 if count_usuarios > 0:
     print(f"✓ Ya hay {count_usuarios} usuarios en la base de datos")
 else:
+<<<<<<< HEAD
     print("\nCreando usuarios de prueba...")
     
     # Usuario normal
@@ -186,6 +236,17 @@ else:
     print("✓ Usuarios creados:")
     print("  1. User: test@test.com / 1234")
     print("  2. Admin: admin@test.com / admin")
+=======
+    print("\nCreando usuario de prueba...")
+    cursor.execute(
+        "INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)",
+        ("Usuario Prueba", "test@test.com", "1234")
+    )
+    conn.commit()
+    print("✓ Usuario de prueba creado:")
+    print("  Email: test@test.com")
+    print("  Contraseña: 1234")
+>>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 
 conn.close()
 print("\n✅ Base de datos inicializada correctamente")
