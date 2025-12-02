@@ -16,3 +16,41 @@ export function apiUrl(path) {
   }
   return `${API_BASE_URL}${path.startsWith('/') ? path : '/' + path}`;
 }
+
+/**
+ * Normaliza una URL de imagen para que funcione correctamente.
+ * Convierte URLs absolutas con localhost/127.0.0.1 a URLs relativas usando API_BASE_URL.
+ * @param {string} imageUrl - URL de la imagen
+ * @returns {string} URL normalizada
+ */
+export function normalizeImageUrl(imageUrl) {
+  if (!imageUrl) return 'https://via.placeholder.com/150?text=Sin+imagen';
+  
+  // Si es un array, tomar el primer elemento
+  if (Array.isArray(imageUrl)) {
+    imageUrl = imageUrl[0] || '';
+  }
+  
+  // Si ya es una URL completa externa (no localhost), devolverla tal cual
+  if (imageUrl.startsWith('http') && 
+      !imageUrl.includes('localhost') && 
+      !imageUrl.includes('127.0.0.1')) {
+    return imageUrl;
+  }
+  
+  // Extraer el path relativo (ej: /assets/productos/imagen.webp)
+  let relativePath = imageUrl;
+  
+  // Remover prefijos de localhost o 127.0.0.1
+  relativePath = relativePath
+    .replace(/^https?:\/\/localhost:\d+/, '')
+    .replace(/^https?:\/\/127\.0\.0\.1:\d+/, '');
+  
+  // Asegurar que empiece con /
+  if (!relativePath.startsWith('/')) {
+    relativePath = '/' + relativePath;
+  }
+  
+  // Construir URL completa con API_BASE_URL
+  return API_BASE_URL ? `${API_BASE_URL}${relativePath}` : relativePath;
+}

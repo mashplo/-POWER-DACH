@@ -10,6 +10,7 @@ import {
   getCarritoTotal,
 } from "../herramientas/carrito";
 import { crearPedido } from "../herramientas/pedidos";
+import { normalizeImageUrl } from "../herramientas/config";
 
 export default function CarritoPage() {
   const [carrito, setCarrito] = useState([]);
@@ -171,11 +172,11 @@ export default function CarritoPage() {
                 {/* Imagen */}
                 <div className="w-24 h-24 flex-shrink-0">
                   <img
-                    src={item.image}
+                    src={normalizeImageUrl(item.image)}
                     alt={item.title}
                     className="w-full h-full object-cover rounded-lg"
                     onError={(e) => {
-                      e.target.src = "https://via.placeholder.com/100?text=Producto";
+                      e.target.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNlMmU4ZjAiLz48dGV4dCB4PSI1MCIgeT0iNTAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzY0NzQ4YiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==";
                     }}
                   />
                 </div>

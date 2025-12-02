@@ -22,7 +22,7 @@ export default function PreentrenoShoppingCart() {
     return (
         <div className="px-10 py-20">
             <h1 className="text-3xl font-bold mb-6">PRE-ENTRENOS</h1>
-            <p>Eleva tu energía y enfoque con nuestros pre-entrenos de alta potencia. ¡Entrena como nunca antes!</p>
+            <p>Potencia tu entrenamiento con nuestros pre-entrenos de alta energía. ¡Desata tu máximo rendimiento!</p>
             <div className="divider"></div>
             <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {preentrenos.map(preentreno => (

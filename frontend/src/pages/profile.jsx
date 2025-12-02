@@ -25,7 +25,7 @@ export default function Profile() {
             }
 
             const carritoData = getCarritoCompras();
-            
+
             setUsuario(userData);
             setCarrito(carritoData);
         } catch (error) {
@@ -37,15 +37,15 @@ export default function Profile() {
 
     useEffect(() => {
         cargarDatos();
-        
+
         // Escuchar cambios en el carrito
         const handleCarritoActualizado = () => {
             const carritoData = getCarritoCompras();
             setCarrito(carritoData);
         };
-        
+
         window.addEventListener('carritoActualizado', handleCarritoActualizado);
-        
+
         return () => {
             window.removeEventListener('carritoActualizado', handleCarritoActualizado);
         };
@@ -76,7 +76,7 @@ export default function Profile() {
             </div>
         );
     }
-    
+
     return (
         <div className="min-h-screen bg-base-200 py-8">
             <div className="container mx-auto px-4 max-w-6xl">
@@ -121,7 +121,7 @@ export default function Profile() {
                             <ShoppingBag size={28} />
                             Tu Carrito
                         </h2>
-                        
+
                         {carrito.length === 0 ? (
                             <div className="text-center py-8">
                                 <ShoppingBag size={60} className="mx-auto text-gray-300 mb-4" />
@@ -136,12 +136,12 @@ export default function Profile() {
                                     {carrito.map((item, index) => (
                                         <div key={index} className="flex items-center justify-between p-3 bg-base-200 rounded-lg">
                                             <div className="flex items-center gap-3">
-                                                <img 
-                                                    src={item.image} 
+                                                <img
+                                                    src={item.image}
                                                     alt={item.title}
                                                     className="w-12 h-12 object-cover rounded"
                                                     onError={(e) => {
-                                                        e.target.src = "https://via.placeholder.com/50?text=P";
+                                                        e.target.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNlMmU4ZjAiLz48dGV4dCB4PSI1MCIgeT0iNTAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzY0NzQ4YiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==";
                                                     }}
                                                 />
                                                 <div>
@@ -181,7 +181,7 @@ export default function Profile() {
                     {/* Acciones Rápidas */}
                     <div className="bg-white rounded-lg shadow-md p-6">
                         <h2 className="text-2xl font-bold mb-4">Acciones Rápidas</h2>
-                        
+
                         <div className="space-y-3">
                             <a href="/productos" className="btn btn-outline w-full justify-start">
                                 <ShoppingBag size={20} />

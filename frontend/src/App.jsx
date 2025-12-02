@@ -53,7 +53,7 @@ export default function App() {
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<div className="text-xl">Bienvenido al Panel Administrativo</div>} />
               <Route path="users" element={<AdminUsers />} />
-              <Route path="products" element={<AdminProducts />} />
+              <Route path="products/:type" element={<AdminProducts />} />
               <Route path="boletas" element={<AdminBoletas />} />
             </Route>
           </Route>

@@ -1,14 +1,13 @@
 import { Navigate, Outlet } from "react-router-dom";
 
 export default function ProtectedRoute() {
-    const usuarioStorage = localStorage.getItem("usuarioActual");
-    const usuario = usuarioStorage ? JSON.parse(usuarioStorage) : null;
+    const token = localStorage.getItem("auth_token");
+    const user = JSON.parse(localStorage.getItem("usuarioActual") || "{}");
 
-    // Verificar si el usuario existe y tiene rol de admin
-    if (usuario && usuario.role === "admin") {
-        return <Outlet />;
+    // Check if user is authenticated and is admin
+    if (!token || user.role !== "admin") {
+        return <Navigate to="/login" replace />;
     }
 
-    // Si no es admin, redirigir al home
-    return <Navigate to="/" replace />;
+    return <Outlet />;
 }

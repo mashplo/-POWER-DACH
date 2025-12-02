@@ -20,10 +20,14 @@ export default function Login() {
     // Login con el backend
     try {
       const resultado = await loginUsuario(email, password)
-      
+
       if (resultado.success) {
         alert("Login exitoso!")
-        window.location.href = "/profile"
+        if (resultado.usuario.role === 'admin') {
+          window.location.href = "/admin"
+        } else {
+          window.location.href = "/profile"
+        }
       } else {
         setError(resultado.error || "Email o contraseña incorrectos")
       }
@@ -38,15 +42,15 @@ export default function Login() {
       <div className="card w-full max-w-md bg-base-100 shadow-xl">
         <div className="card-body">
           <h2 className="card-title text-center text-2xl mb-6">Iniciar Sesión</h2>
-          
+
           <form onSubmit={handleLogin}>
             <div className="form-control mb-4">
               <label className="label">
                 <span className="label-text">Email</span>
               </label>
-              <input 
-                type="email" 
-                className="input input-bordered w-full" 
+              <input
+                type="email"
+                className="input input-bordered w-full"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu-email@ejemplo.com"
@@ -58,9 +62,9 @@ export default function Login() {
                 <span className="label-text">Contraseña</span>
               </label>
               <div className="relative">
-                <input 
+                <input
                   type={mostrarPassword ? "text" : "password"}
-                  className="input input-bordered w-full pr-10" 
+                  className="input input-bordered w-full pr-10"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Tu contraseña"
@@ -89,7 +93,7 @@ export default function Login() {
           </form>
 
           <div className="divider">¿No tienes cuenta?</div>
-          
+
           <a href="/register" className="btn btn-outline w-full">
             Crear Cuenta
           </a>

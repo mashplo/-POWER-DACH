@@ -1,134 +1,181 @@
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
+import { API_BASE_URL, normalizeImageUrl } from "../../herramientas/config";
+import { ChevronDown, ChevronUp, Eye, Package, User, Calendar, DollarSign } from "lucide-react";
 
 export default function AdminBoletas() {
     const [boletas, setBoletas] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedBoleta, setSelectedBoleta] = useState(null);
+    const [expandedBoleta, setExpandedBoleta] = useState(null);
+    const [boletaDetails, setBoletaDetails] = useState({});
 
     useEffect(() => {
+        const fetchBoletas = async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/boletas`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                    }
+                });
+                const data = await response.json();
+                if (Array.isArray(data)) {
+                    setBoletas(data);
+                } else {
+                    console.error("Respuesta inesperada:", data);
+                    setBoletas([]);
+                }
+            } catch (error) {
+                console.error("Error al obtener boletas:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
         fetchBoletas();
     }, []);
 
-    const fetchBoletas = async () => {
+    const fetchBoletaDetails = async (boletaId) => {
+        if (boletaDetails[boletaId]) {
+            // Ya tenemos los detalles, solo expandir/colapsar
+            setExpandedBoleta(expandedBoleta === boletaId ? null : boletaId);
+            return;
+        }
+
         try {
-            const response = await fetch("http://localhost:8000/api/v1/boletas");
-            if (response.ok) {
-                const data = await response.json();
-                setBoletas(data);
-            }
+            const response = await fetch(`${API_BASE_URL}/api/v1/boletas/${boletaId}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                }
+            });
+            const data = await response.json();
+            setBoletaDetails(prev => ({ ...prev, [boletaId]: data }));
+            setExpandedBoleta(boletaId);
         } catch (error) {
-            toast.error("Error al cargar boletas");
-        } finally {
-            setLoading(false);
+            console.error("Error al obtener detalles:", error);
         }
     };
 
-    const fetchBoletaDetail = async (id) => {
+    const formatDate = (dateString) => {
         try {
-            const response = await fetch(`http://localhost:8000/api/v1/boletas/${id}`);
-            if (response.ok) {
-                const data = await response.json();
-                setSelectedBoleta(data);
-            }
-        } catch (error) {
-            toast.error("Error al cargar detalle");
+            return new Date(dateString).toLocaleString('es-PE', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return dateString;
         }
     };
 
-    if (loading) return <div>Cargando...</div>;
+    if (loading) return (
+        <div className="flex justify-center items-center h-64">
+            <span className="loading loading-spinner loading-lg"></span>
+        </div>
+    );
 
     return (
         <div>
-            <h2 className="text-2xl font-bold mb-6">Boletas Generadas</h2>
-
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {boletas.map((boleta) => (
-                            <tr key={boleta.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#{boleta.id}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{boleta.user_name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{boleta.fecha}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">S/ {boleta.total}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button
-                                        onClick={() => fetchBoletaDetail(boleta.id)}
-                                        className="text-indigo-600 hover:text-indigo-900"
-                                    >
-                                        Ver Detalle
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Detail Modal */}
-            {selectedBoleta && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold">Detalle de Boleta #{selectedBoleta.boleta.id}</h3>
-                            <button onClick={() => setSelectedBoleta(null)} className="text-gray-500 hover:text-gray-700">✕</button>
-                        </div>
-
-                        <div className="mb-6 grid grid-cols-2 gap-4">
-                            <div>
-                                <p className="text-sm text-gray-500">Fecha</p>
-                                <p className="font-medium">{selectedBoleta.boleta.fecha}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500">Total</p>
-                                <p className="font-bold text-xl text-indigo-600">S/ {selectedBoleta.boleta.total}</p>
-                            </div>
-                        </div>
-
-                        <h4 className="font-medium mb-2">Productos</h4>
-                        <div className="border rounded-lg overflow-hidden">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
-                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Cant.</th>
-                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Precio</th>
-                                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Subtotal</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {selectedBoleta.items.map((item) => (
-                                        <tr key={item.id}>
-                                            <td className="px-4 py-2 text-sm text-gray-900">{item.product_title}</td>
-                                            <td className="px-4 py-2 text-sm text-gray-500 text-right">{item.quantity}</td>
-                                            <td className="px-4 py-2 text-sm text-gray-500 text-right">S/ {item.price}</td>
-                                            <td className="px-4 py-2 text-sm font-medium text-gray-900 text-right">
-                                                S/ {(item.quantity * item.price).toFixed(2)}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div className="mt-6 flex justify-end">
-                            <button
-                                onClick={() => setSelectedBoleta(null)}
-                                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+            <h1 className="text-3xl font-bold mb-6">Gestión de Boletas</h1>
+            
+            {boletas.length === 0 ? (
+                <div className="bg-white rounded-lg shadow p-8 text-center">
+                    <Package size={64} className="mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-500 text-lg">No hay boletas registradas</p>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {boletas.map(boleta => (
+                        <div key={boleta.id} className="bg-white rounded-lg shadow overflow-hidden">
+                            {/* Cabecera de la boleta */}
+                            <div 
+                                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                                onClick={() => fetchBoletaDetails(boleta.id)}
                             >
-                                Cerrar
-                            </button>
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-6">
+                                        <div className="bg-primary/10 rounded-full p-3">
+                                            <Package className="text-primary" size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-lg">Boleta #{boleta.id}</h3>
+                                            <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                                                <span className="flex items-center gap-1">
+                                                    <User size={14} /> {boleta.user_name || 'Usuario'}
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    <Calendar size={14} /> {formatDate(boleta.fecha)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-right">
+                                            <p className="text-sm text-gray-500">Total</p>
+                                            <p className="font-bold text-xl text-primary">S/ {boleta.total?.toFixed(2)}</p>
+                                        </div>
+                                        <div className="badge badge-success">Completada</div>
+                                        {expandedBoleta === boleta.id ? (
+                                            <ChevronUp size={24} className="text-gray-400" />
+                                        ) : (
+                                            <ChevronDown size={24} className="text-gray-400" />
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Detalles expandibles */}
+                            {expandedBoleta === boleta.id && boletaDetails[boleta.id] && (
+                                <div className="border-t bg-gray-50 p-4">
+                                    <h4 className="font-semibold mb-3 text-gray-700">Productos:</h4>
+                                    <div className="space-y-3">
+                                        {boletaDetails[boleta.id].items?.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="bg-gray-100 rounded p-2">
+                                                        <Package size={20} className="text-gray-500" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium">{item.product_title}</p>
+                                                        <p className="text-sm text-gray-500">
+                                                            {item.product_type} • Cantidad: {item.quantity}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm text-gray-500">S/ {item.price?.toFixed(2)} c/u</p>
+                                                    <p className="font-semibold">S/ {(item.price * item.quantity).toFixed(2)}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Información del usuario */}
+                                    {boletaDetails[boleta.id].boleta && (
+                                        <div className="mt-4 pt-4 border-t">
+                                            <h4 className="font-semibold mb-2 text-gray-700">Cliente:</h4>
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <User size={16} className="text-gray-400" />
+                                                <span>{boletaDetails[boleta.id].boleta.nombre}</span>
+                                                <span className="text-gray-400">|</span>
+                                                <span className="text-gray-500">{boletaDetails[boleta.id].boleta.email}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Resumen */}
+                                    <div className="mt-4 pt-4 border-t flex justify-end">
+                                        <div className="bg-primary/10 rounded-lg p-4 inline-block">
+                                            <div className="flex items-center gap-2">
+                                                <DollarSign className="text-primary" />
+                                                <span className="text-gray-600">Total pagado:</span>
+                                                <span className="font-bold text-2xl text-primary">S/ {boleta.total?.toFixed(2)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    </div>
+                    ))}
                 </div>
             )}
         </div>

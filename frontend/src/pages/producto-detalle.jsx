@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { API_BASE_URL } from "../herramientas/config";
+import { API_BASE_URL, normalizeImageUrl } from "../herramientas/config";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
@@ -76,7 +76,7 @@ export default function ProductoDetalle() {
         <div className="flex flex-col gap-4">
           <div className="relative">
             <img
-              src={producto.images[imagenActual]}
+              src={normalizeImageUrl(producto.images[imagenActual])}
               alt={producto.title}
               className="w-full h-[500px] object-contain rounded-lg shadow-lg bg-white"
             />
@@ -112,7 +112,7 @@ export default function ProductoDetalle() {
                   }`}
                 >
                   <img
-                    src={img}
+                    src={normalizeImageUrl(img)}
                     alt={`${producto.title} ${index + 1}`}
                     className="w-full h-full object-contain bg-white"
                   />

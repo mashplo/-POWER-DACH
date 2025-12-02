@@ -1,57 +1,48 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Outlet, Link } from "react-router-dom";
 
 export default function AdminLayout() {
-    const location = useLocation();
-
-    const menuItems = [
-        { path: "/admin/products", label: "Productos", icon: "📦" },
-        { path: "/admin/users", label: "Usuarios", icon: "👥" },
-        { path: "/admin/boletas", label: "Boletas", icon: "📄" },
-    ];
-
     return (
-        <div className="flex min-h-screen bg-gray-100">
+        <div className="min-h-screen flex">
             {/* Sidebar */}
-            <aside className="w-64 bg-slate-900 text-white flex-shrink-0">
-                <div className="p-6">
-                    <h1 className="text-2xl font-bold text-yellow-500">Admin Panel</h1>
-                    <p className="text-xs text-gray-400 mt-1">Gestión de Tienda</p>
-                </div>
+            <aside className="w-64 bg-gray-800 text-white p-6">
+                <h2 className="text-2xl font-bold mb-6">Panel Admin</h2>
+                <nav className="space-y-2">
+                    <div className="collapse collapse-arrow bg-gray-700 rounded-box">
+                        <input type="checkbox" />
+                        <div className="collapse-title font-medium">
+                            Categorías
+                        </div>
+                        <div className="collapse-content text-sm">
+                            <Link to="/admin/products/productos" className="block py-2 hover:text-primary">Proteínas</Link>
+                            <Link to="/admin/products/creatinas" className="block py-2 hover:text-primary">Creatinas</Link>
+                            <Link to="/admin/products/preentrenos" className="block py-2 hover:text-primary">Pre-entrenos</Link>
+                        </div>
+                    </div>
 
-                <nav className="mt-6">
-                    <ul>
-                        {menuItems.map((item) => (
-                            <li key={item.path}>
-                                <Link
-                                    to={item.path}
-                                    className={`flex items-center px-6 py-3 text-sm font-medium transition-colors ${location.pathname.startsWith(item.path)
-                                            ? "bg-yellow-500 text-slate-900"
-                                            : "text-gray-300 hover:bg-slate-800 hover:text-white"
-                                        }`}
-                                >
-                                    <span className="mr-3 text-lg">{item.icon}</span>
-                                    {item.label}
-                                </Link>
-                            </li>
-                        ))}
-                        <li className="mt-8 border-t border-slate-700 pt-4">
-                            <Link
-                                to="/"
-                                className="flex items-center px-6 py-3 text-sm font-medium text-gray-400 hover:text-white transition-colors"
-                            >
-                                <span className="mr-3">🏠</span>
-                                Volver a la Tienda
-                            </Link>
-                        </li>
-                    </ul>
+                    <Link
+                        to="/admin/users"
+                        className="block px-4 py-2 rounded hover:bg-gray-700 transition"
+                    >
+                        Usuarios
+                    </Link>
+                    <Link
+                        to="/admin/boletas"
+                        className="block px-4 py-2 rounded hover:bg-gray-700 transition"
+                    >
+                        Boletas
+                    </Link>
+                    <Link
+                        to="/"
+                        className="block px-4 py-2 rounded hover:bg-gray-700 transition mt-6 border-t border-gray-600 pt-6"
+                    >
+                        Volver al sitio
+                    </Link>
                 </nav>
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-auto">
-                <div className="p-8">
-                    <Outlet />
-                </div>
+            <main className="flex-1 p-8 bg-gray-100">
+                <Outlet />
             </main>
         </div>
     );

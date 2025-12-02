@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { addItemCarrito } from "../../herramientas/carrito";
+import { normalizeImageUrl } from "../../herramientas/config";
 
 export default function Card({ producto }) {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ export default function Card({ producto }) {
       id: producto.id,
       title: producto.title,
       price: producto.price,
-      image: producto.images[0],
+      image: normalizeImageUrl(producto.images),
       tipo: "proteina",
     });
     toast.success(`${producto.title} agregado al carrito`);
@@ -27,7 +28,7 @@ export default function Card({ producto }) {
       onClick={handleClick}
       className="card rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300"
     >
-      <img src={producto.images[0]} alt={producto.title} className="card-image" />
+      <img src={normalizeImageUrl(producto.images)} alt={producto.title} className="card-image" />
       <div className="card-content px-5 py-4 flex flex-col gap-2">
         <h2 className="card-title text-lg font-semibold">{producto.title}</h2>
         <p className="card-price text-2xl font-bold text-primary">S/{producto.price}</p>

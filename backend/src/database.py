@@ -74,7 +74,6 @@ usuarios = Table(
     Column('id', Integer, primary_key=True, autoincrement=True),
     Column('nombre', String(255), nullable=False),
     Column('email', String(255), nullable=False, unique=True),
-<<<<<<< HEAD
     Column('password', String(255), nullable=False),
     Column('role', String(50), nullable=False, server_default='user')
 )
@@ -100,9 +99,6 @@ boleta_items = Table(
     Column('product_title', String(255), nullable=False),
     Column('quantity', Integer, nullable=False),
     Column('price', Float, nullable=False)
-=======
-    Column('password', String(255), nullable=False)
->>>>>>> d2990279d9feed4f7900093199302bd4d1c9975f
 )
 
 def get_conn():
@@ -115,5 +111,19 @@ def get_db():
 
 def inicializar_db():
     """Crear todas las tablas si no existen."""
-    metadata.create_all(engine)
-    print("✅ Tablas inicializadas correctamente")
+    try:
+        metadata.create_all(engine)
+        print("✅ Tablas inicializadas correctamente")
+    except Exception as e:
+        print(f"⚠️ Error al inicializar tablas: {e}")
+        # No lanzar excepción para permitir que la app continúe
+
+def verificar_conexion():
+    """Verifica la conexión a la base de datos."""
+    try:
+        with engine.connect() as conn:
+            conn.execute("SELECT 1")
+        return True
+    except Exception as e:
+        print(f"❌ Error de conexión a BD: {e}")
+        return False

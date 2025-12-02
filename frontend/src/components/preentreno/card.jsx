@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { addItemCarrito } from "../../herramientas/carrito";
+import { normalizeImageUrl } from "../../herramientas/config";
 
 export default function Card({ producto }) {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ export default function Card({ producto }) {
       id: producto.id,
       title: producto.title,
       price: producto.price,
-      image: producto.images[0],
+      image: normalizeImageUrl(producto.images),
       tipo: "preentreno",
     });
     toast.success(`${producto.title} agregado al carrito`);
@@ -28,7 +29,7 @@ export default function Card({ producto }) {
       className="card rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow"
     >
       <img
-        src={producto.images[0]}
+        src={normalizeImageUrl(producto.images)}
         alt={producto.title}
         className="card-image"
       />

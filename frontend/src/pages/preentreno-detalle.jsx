@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../herramientas/config";
+import { API_BASE_URL, normalizeImageUrl } from "../herramientas/config";
 import { useState, useEffect } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
@@ -79,7 +79,7 @@ export default function PreentrenoDetalle() {
             style={{ height: "500px" }}
           >
             <img
-              src={preentreno.images[imagenActual]}
+              src={normalizeImageUrl(preentreno.images[imagenActual])}
               alt={preentreno.title}
               className="w-full h-full object-contain"
             />
@@ -108,7 +108,7 @@ export default function PreentrenoDetalle() {
               {preentreno.images.map((img, idx) => (
                 <img
                   key={idx}
-                  src={img}
+                  src={normalizeImageUrl(img)}
                   alt={`${preentreno.title} ${idx + 1}`}
                   className={`w-20 h-20 object-cover rounded cursor-pointer border-2 ${
                     idx === imagenActual

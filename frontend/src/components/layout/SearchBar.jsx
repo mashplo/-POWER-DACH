@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { API_BASE_URL } from "../../herramientas/config";
+import { API_BASE_URL, normalizeImageUrl } from "../../herramientas/config";
 import { Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -191,18 +191,17 @@ export default function SearchBar() {
                 key={`${producto.tipo}-${producto.id}`}
                 onClick={() => handleSelectProduct(producto)}
                 onMouseEnter={() => setSelectedIndex(index)}
-                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                  index === selectedIndex
+                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${index === selectedIndex
                     ? "bg-primary text-white"
                     : "hover:bg-gray-100"
-                }`}
+                  }`}
               >
                 <img
-                  src={Array.isArray(producto.images) ? producto.images[0] : producto.images}
+                  src={normalizeImageUrl(producto.images)}
                   alt={producto.title}
                   className="w-12 h-12 object-cover rounded"
                   onError={(e) => {
-                    e.target.src = "https://via.placeholder.com/50?text=Producto";
+                    e.target.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNlMmU4ZjAiLz48dGV4dCB4PSI1MCIgeT0iNTAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzY0NzQ4YiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==";
                   }}
                 />
                 <div className="flex-1 min-w-0">
@@ -210,18 +209,16 @@ export default function SearchBar() {
                     {highlightText(producto.title, searchTerm)}
                   </p>
                   <p
-                    className={`text-xs ${
-                      index === selectedIndex ? "text-white/80" : "text-gray-500"
-                    }`}
+                    className={`text-xs ${index === selectedIndex ? "text-white/80" : "text-gray-500"
+                      }`}
                   >
                     {producto.categoria}
                   </p>
                 </div>
                 <div className="text-right">
                   <p
-                    className={`font-bold ${
-                      index === selectedIndex ? "text-white" : "text-primary"
-                    }`}
+                    className={`font-bold ${index === selectedIndex ? "text-white" : "text-primary"
+                      }`}
                   >
                     S/ {producto.price.toFixed(2)}
                   </p>

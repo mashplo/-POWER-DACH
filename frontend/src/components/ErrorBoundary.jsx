@@ -1,40 +1,35 @@
-import React from 'react';
+import { Component } from "react";
 
-class ErrorBoundary extends React.Component {
+class ErrorBoundary extends Component {
     constructor(props) {
         super(props);
-        this.state = { hasError: false, error: null, errorInfo: null };
+        this.state = { hasError: false, error: null };
     }
 
     static getDerivedStateFromError(error) {
-        // Actualiza el estado para que el siguiente renderizado muestre la UI alternativa
-        return { hasError: true };
+        return { hasError: true, error };
     }
 
     componentDidCatch(error, errorInfo) {
-        // También puedes registrar el error en un servicio de reporte de errores
         console.error("Error capturado por ErrorBoundary:", error, errorInfo);
-        this.setState({ error, errorInfo });
     }
 
     render() {
         if (this.state.hasError) {
-            // Puedes renderizar cualquier UI personalizada
             return (
-                <div style={{ padding: '20px', textAlign: 'center', marginTop: '50px' }}>
-                    <h1>Algo salió mal.</h1>
-                    <p>Lo sentimos, ha ocurrido un error inesperado.</p>
-                    <details style={{ whiteSpace: 'pre-wrap', marginTop: '10px', color: 'red' }}>
-                        {this.state.error && this.state.error.toString()}
-                        <br />
-                        {this.state.errorInfo && this.state.errorInfo.componentStack}
-                    </details>
-                    <button
-                        onClick={() => window.location.reload()}
-                        style={{ marginTop: '20px', padding: '10px 20px', cursor: 'pointer' }}
-                    >
-                        Recargar página
-                    </button>
+                <div className="min-h-screen flex items-center justify-center bg-gray-100">
+                    <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
+                        <h1 className="text-2xl font-bold text-red-600 mb-4">¡Oops! Algo salió mal</h1>
+                        <p className="text-gray-700 mb-4">
+                            Ha ocurrido un error inesperado. Por favor, recarga la página e intenta de nuevo.
+                        </p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+                        >
+                            Recargar página
+                        </button>
+                    </div>
                 </div>
             );
         }

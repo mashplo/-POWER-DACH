@@ -1,130 +1,104 @@
-# Proyecto de Proteínas - Universidad
+# Power DACH - Tienda de Suplementos Deportivos
 
-Este es un proyecto universitario simple de compra de proteínas con frontend y backend básico.
-
-## ⚡ Inicio Rápido
-
-### 1. Backend (FastAPI)
-
-```bash
-cd backend
-
-# Primera vez: Instalar dependencias
-poetry install
-
-# Primera vez: Crear la base de datos con proteínas de ejemplo
-poetry run python inicializar.py
-
-# Ejecutar el servidor (cada vez)
-poetry run start
-```
-
-El backend estará disponible en `http://localhost:8000`
-
-### 2. Frontend (React + Vite)
-
-```bash
-cd frontend
-
-# Primera vez: Instalar dependencias
-npm install
-
-# Ejecutar el servidor de desarrollo (cada vez)
-npm run dev
-```
-
-El frontend estará disponible en `http://localhost:5173`
+Aplicación web completa para una tienda de suplementos deportivos con React (frontend) y FastAPI (backend).
 
 ## 📁 Estructura del Proyecto
 
 ```
-amino/
-├── backend/
-│   ├── backend/
-│   │   ├── app.py          # API con un solo endpoint
-│   │   ├── database.py     # Configuración SQLite
-│   │   └── crear_productos.py
-│   ├── inicializar.py      # Script para crear proteínas
-│   ├── proteinas.db        # Base de datos SQLite
-│   └── pyproject.toml      # Dependencias de Python
+power-dach/
+├── backend/                # API REST con FastAPI
+│   ├── src/                # Código fuente
+│   │   ├── app.py          # Aplicación y endpoints
+│   │   └── database.py     # Configuración BD
+│   ├── assets/productos/   # Imágenes de productos
+│   ├── tests/              # Tests unitarios
+│   ├── run.py              # Iniciar servidor
+│   ├── init_local.py       # Inicializar BD
+│   └── requirements.txt    # Dependencias Python
 │
-└── frontend/
-    ├── src/
-    │   ├── pages/          # Login, Register, Profile, Proteina
-    │   ├── components/     # Componentes reutilizables
-    │   └── herramientas/
-    │       ├── api.js      # Llama al backend local
-    │       └── usuario.js  # Maneja localStorage
-    └── package.json
+├── frontend/               # Aplicación React + Vite
+│   ├── src/
+│   │   ├── components/     # Componentes React
+│   │   ├── pages/          # Páginas de la app
+│   │   ├── herramientas/   # Utilidades y API
+│   │   └── layouts/        # Layouts base
+│   ├── public/             # Archivos estáticos
+│   └── package.json        # Dependencias Node
+│
+└── README.md               # Este archivo
 ```
 
-## 🎯 Funcionalidades
+## 🚀 Inicio Rápido
 
-### Backend (Súper Simple)
-- **GET /**: Mensaje de bienvenida
-- **GET /api/v1/products**: Retorna todas las proteínas en formato JSON
-- **POST /api/register**: Registra un nuevo usuario
-- **POST /api/login**: Inicia sesión con email y contraseña
-- **GET /api/usuario/{id}**: Obtiene información de un usuario
-- Base de datos SQLite con 2 tablas: `productos` y `usuarios`
-- Sin tokens, sin JWT, sin autenticación compleja
+### Requisitos
+- Python 3.10+
+- Node.js 18+
 
-### Frontend
-- **Registro**: Envía datos al backend para crear usuario
-- **Login**: Verifica credenciales contra el backend y guarda en localStorage
-- **Catálogo de Proteínas**: Obtiene datos del backend
-- **Carrito**: Se guarda en localStorage (sin backend)
-- **Perfil**: Muestra usuario actual y su carrito
+### 1. Backend
 
-## 🔧 Cambios Realizados
+```bash
+cd backend
+pip install -r requirements.txt
+python init_local.py    # Primera vez: inicializa BD
+python run.py           # Inicia servidor en http://localhost:8000
+```
+
+### 2. Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev             # Inicia en http://localhost:5173
+```
+
+## 👤 Credenciales de Prueba
+
+| Usuario | Email | Contraseña |
+|---------|-------|------------|
+| Admin | admin@powertech.com | admin123 |
+| Usuario | usuario@test.com | test123 |
+
+## 🛠️ Tecnologías
 
 ### Backend
-- ✅ Eliminado sistema de autenticación JWT y tokens complejos
-- ✅ Creados 3 endpoints simples de usuarios: `/register`, `/login`, `/usuario/{id}`
-- ✅ Endpoint de proteínas: `/api/v1/products`
-- ✅ Base de datos con 2 tablas: `productos` y `usuarios`
-- ✅ Sin validaciones complejas, todo súper básico
-- ✅ Contraseñas en texto plano (solo para universidad)
-- ✅ CORS configurado para aceptar peticiones del frontend
+- **FastAPI** - Framework web moderno
+- **SQLAlchemy** - ORM para base de datos
+- **SQLite** - Base de datos local
+- **bcrypt** - Encriptación de contraseñas
+- **python-jose** - Tokens JWT
 
 ### Frontend
-- ✅ Cambiado endpoint de proteínas a `http://localhost:8000/api/v1/products`
-- ✅ Login y registro ahora usan el backend (pero siguen guardando en localStorage)
-- ✅ Carrito sigue funcionando solo con localStorage
+- **React 19** - Librería UI
+- **Vite** - Bundler rápido
+- **TailwindCSS + DaisyUI** - Estilos
+- **React Router** - Navegación SPA
+- **Sonner** - Notificaciones
 
-## 📝 Notas Importantes (Proyecto Universitario)
+## 📡 API Endpoints
 
-⚠️ **Este proyecto NO tiene seguridad real**:
-- Contraseñas en texto plano en localStorage
-- Sin validaciones robustas
-- Sin manejo de errores complejo
-- Todo muy básico (como debe ser para la universidad)
-- Funciona solo en localhost
+Documentación completa en: http://localhost:8000/docs
 
-## 🗄️ Base de Datos
+### Productos
+- `GET /api/v1/products` - Listar proteínas
+- `GET /api/v1/creatinas` - Listar creatinas
+- `GET /api/v1/preentrenos` - Listar pre-entrenos
 
-```sql
--- Tabla de productos (proteínas)
-CREATE TABLE productos (
-    id INTEGER PRIMARY KEY,
-    title TEXT,
-    description TEXT,
-    price REAL,
-    images TEXT,       -- URLs separadas por comas
-    category TEXT
-);
+### Autenticación
+- `POST /api/v1/auth/register` - Registro
+- `POST /api/v1/auth/login` - Login
+- `GET /api/v1/auth/me` - Usuario actual
 
--- Tabla de usuarios
-CREATE TABLE usuarios (
-    id INTEGER PRIMARY KEY,
-    nombre TEXT,
-    email TEXT UNIQUE,
-    password TEXT      -- Texto plano (solo para universidad)
-);
+### Pedidos
+- `POST /api/v1/boletas` - Crear pedido
+- `GET /api/v1/boletas/{id}` - Detalle de pedido
+
+## 🧪 Tests
+
+```bash
+cd backend
+pytest tests/ -v
 ```
 
-**Datos de ejemplo:**
-- 8 proteínas con imágenes de Unsplash
-- 1 usuario de prueba:
-  - Email: `test@test.com`
-  - Contraseña: `1234`
+## 📝 Licencia
+
+Proyecto universitario - Uso educativo.

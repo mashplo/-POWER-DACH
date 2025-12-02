@@ -1,4 +1,7 @@
 // Funciones para manejar pedidos
+import { API_BASE_URL } from './config.js';
+
+const BOLETAS_URL = API_BASE_URL ? `${API_BASE_URL}/api/v1/boletas` : null;
 
 export async function crearPedido({ items, total, metodoPago }) {
   const usuario = localStorage.getItem("usuarioActual")
@@ -7,6 +10,10 @@ export async function crearPedido({ items, total, metodoPago }) {
 
   if (!usuario) {
     return { success: false, error: "Debes iniciar sesión para realizar un pedido" };
+  }
+
+  if (!BOLETAS_URL) {
+    return { success: false, error: "API no configurada" };
   }
 
   // Preparar datos para el backend
@@ -23,7 +30,7 @@ export async function crearPedido({ items, total, metodoPago }) {
   };
 
   try {
-    const response = await fetch("http://localhost:8000/api/v1/boletas", {
+    const response = await fetch(BOLETAS_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(boletaData)
