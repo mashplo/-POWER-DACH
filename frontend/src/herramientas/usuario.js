@@ -1,11 +1,11 @@
 import { API_BASE_URL } from './config.js';
-// Endpoints reales (FastAPI ya expone /api/v1/auth/*)
-const REGISTER_URL = API_BASE_URL ? `${API_BASE_URL}/api/v1/auth/register` : null;
-const LOGIN_URL = API_BASE_URL ? `${API_BASE_URL}/api/v1/auth/login` : null;
-const ME_URL = API_BASE_URL ? `${API_BASE_URL}/api/v1/auth/me` : null;
+// Endpoints reales del backend
+const REGISTER_URL = API_BASE_URL ? `${API_BASE_URL}/api/auth/register` : null;
+const LOGIN_URL = API_BASE_URL ? `${API_BASE_URL}/api/auth/login` : null;
+const ME_URL = API_BASE_URL ? `${API_BASE_URL}/api/auth/me` : null;
 
 export async function getUsuario(id) {
-    const usuarioActual = localStorage.getItem("usuarioActual")
+    const usuarioActual = localStorage.getItem("user")
     
     if (usuarioActual) {
         return JSON.parse(usuarioActual)
@@ -90,8 +90,9 @@ export async function loginUsuario(email, password) {
             return { success: false, error: 'No se pudo obtener perfil' };
         }
         const user = await meResp.json();
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('usuarioActual', JSON.stringify(user));
+        // Guardar token y usuario
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
         return { success: true, message: 'Sesión iniciada', usuario: user, token };
     } catch (e) {
         return { success: false, error: 'Fallo de conexión al iniciar sesión' };
@@ -99,12 +100,12 @@ export async function loginUsuario(email, password) {
 }
 
 export async function cerrarSesion() {
-    localStorage.removeItem("usuarioActual");
-    localStorage.removeItem("auth_token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
     return { success: true, message: "Sesión cerrada" };
 }
 
 export async function obtenerUsuarioActual() {
-    const usuario = localStorage.getItem("usuarioActual");
+    const usuario = localStorage.getItem("user");
     return usuario ? JSON.parse(usuario) : null;
 }

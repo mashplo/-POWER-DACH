@@ -1,48 +1,52 @@
 // Funciones para manejar pedidos
 import { API_BASE_URL } from './config.js';
 
-const BOLETAS_URL = API_BASE_URL ? `${API_BASE_URL}/api/v1/boletas` : null;
-
 export async function crearPedido({ items, total, metodoPago }) {
-  const usuario = localStorage.getItem("usuarioActual")
-    ? JSON.parse(localStorage.getItem("usuarioActual"))
-    : null;
+  // Obtener usuario desde localStorage (token y user)
+  const token = localStorage.getItem("token");
+  const userStr = localStorage.getItem("user");
+  const usuario = userStr ? JSON.parse(userStr) : null;
 
-  if (!usuario) {
+  if (!usuario || !token) {
     return { success: false, error: "Debes iniciar sesión para realizar un pedido" };
   }
 
-  if (!BOLETAS_URL) {
+  if (!API_BASE_URL) {
     return { success: false, error: "API no configurada" };
   }
 
   // Preparar datos para el backend
+  // Mapear método de pago string a ID (1=efectivo, 2=tarjeta, 3=yape, etc)
+  const metodoPagoMap = {
+    "efectivo": 1,
+    "tarjeta": 2,
+    "yape": 3,
+    "plin": 4,
+    "transferencia": 5
+  };
+
   const boletaData = {
-    user_id: usuario.id,
-    total: total,
     items: items.map(item => ({
-      product_id: item.id,
-      product_type: item.tipo, // Asegurarse que 'tipo' coincida con lo esperado (productos, creatinas, preentrenos)
-      quantity: item.cantidad,
-      price: item.price,
-      title: item.title
-    }))
+      producto_id: item.id,
+      cantidad: item.cantidad
+    })),
+    metodo_pago_id: metodoPagoMap[metodoPago] || 1,
+    direccion_envio: "Dirección predeterminada"
   };
 
   try {
-    const response = await fetch(BOLETAS_URL, {
+    const response = await fetch(`${API_BASE_URL}/api/boletas`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
       body: JSON.stringify(boletaData)
     });
 
     if (response.ok) {
       const data = await response.json();
-
-      // Mantener compatibilidad con localStorage para historial local si se desea
-      // O simplemente confiar en el backend.
-      // Por ahora, retornamos el ID de la boleta del backend
-      return { success: true, pedido: { id: data.boleta_id } };
+      return { success: true, pedido: { id: data.id } };
     } else {
       const errorData = await response.json();
       let errorMessage = "Error al crear el pedido";
@@ -58,13 +62,14 @@ export async function crearPedido({ items, total, metodoPago }) {
       return { success: false, error: errorMessage };
     }
   } catch (error) {
+    console.error("Error creando pedido:", error);
     return { success: false, error: "Error de conexión con el servidor" };
   }
 }
 
 export function obtenerPedidos() {
-  const usuario = localStorage.getItem("usuarioActual")
-    ? JSON.parse(localStorage.getItem("usuarioActual"))
+  const usuario = localStorage.getItem("user")
+    ? JSON.parse(localStorage.getItem("user"))
     : null;
 
   if (!usuario) {
@@ -79,12 +84,32 @@ export function obtenerPedidos() {
   return todosPedidos.filter(p => p.usuario.id === usuario.id);
 }
 
-export function obtenerPedidoPorId(id) {
-  const pedidos = localStorage.getItem("pedidos")
-    ? JSON.parse(localStorage.getItem("pedidos"))
-    : [];
+export async function obtenerPedidoPorId(id) {
+  const token = localStorage.getItem("token");
+  
+  if (!API_BASE_URL) {
+    return null;
+  }
 
-  return pedidos.find(p => p.id === parseInt(id));
+  try {
+    const headers = { "Content-Type": "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/boletas/${id}`, {
+      method: "GET",
+      headers
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+    return null;
+  } catch (error) {
+    console.error("Error obteniendo boleta:", error);
+    return null;
+  }
 }
 
 export function obtenerTodosPedidos() {

@@ -19,6 +19,7 @@ import BoletaPage from "./pages/boleta";
 import HistorialPage from "./pages/historial";
 
 import AdminLayout from "./layouts/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminBoletas from "./pages/admin/AdminBoletas";
@@ -51,7 +52,7 @@ export default function App() {
           {/* Admin Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<div className="text-xl">Bienvenido al Panel Administrativo</div>} />
+              <Route index element={<AdminDashboard />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="products/:type" element={<AdminProducts />} />
               <Route path="boletas" element={<AdminBoletas />} />

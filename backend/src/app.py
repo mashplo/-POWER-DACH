@@ -1,548 +1,1113 @@
-from fastapi import FastAPI, Depends, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-try:
-    from pydantic import BaseModel, EmailStr
-except ImportError:
-    # Fallback si email-validator no está instalado todavía en el entorno
-    from pydantic import BaseModel
-    EmailStr = str  # type: ignore
-from src.database import get_db, inicializar_db, metadata, engine, usuarios, productos, creatinas, preentrenos, boletas, boleta_items
-from sqlalchemy import text, select, and_
-from jose import jwt, JWTError
-from datetime import datetime, timedelta
-import secrets
+"""
+POWER-DACH API - FastAPI con SQL Puro (sin ORM)
+Todas las consultas son SQL directo usando sqlite3
+"""
 import os
-import bcrypt
+import io
+import hashlib
+from datetime import datetime, timedelta
+from typing import Optional, List
+from fastapi import FastAPI, HTTPException, Depends, Query, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, EmailStr, Field
+from jose import JWTError, jwt
 
-app = FastAPI()
+# Importar módulo de base de datos SQL puro
+from . import database as db
 
-# IMPORTANTE: El middleware CORS debe agregarse ANTES de montar archivos estáticos
-# Configurar CORS para que el frontend pueda acceder
-# No se puede usar allow_origins=["*"] con allow_credentials=True
-# Especificamos los orígenes permitidos explícitamente
+# ============================================================================
+# CONFIGURACIÓN
+# ============================================================================
+SECRET_KEY = os.getenv("SECRET_KEY", "power-dach-secret-key-2024-super-segura")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 horas
+
+security = HTTPBearer(auto_error=False)
+
+app = FastAPI(
+    title="POWER-DACH API",
+    description="API para tienda de suplementos deportivos - SQL Puro",
+    version="2.0.0"
+)
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Frontend en desarrollo
-        "http://127.0.0.1:5173",  # Alternativa localhost
-        "http://localhost:3000",  # Por si usas otro puerto
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Servir archivos estáticos (imágenes) - DESPUÉS del middleware CORS
-assets_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
-app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
+# Archivos estáticos
+ASSETS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
+if os.path.exists(ASSETS_PATH):
+    app.mount("/assets", StaticFiles(directory=ASSETS_PATH), name="assets")
 
-inicializar_db()
 
-# Modelos simples
-class RegisterIn(BaseModel):
-    nombre: str
+# ============================================================================
+# SCHEMAS (Pydantic)
+# ============================================================================
+# --- Auth ---
+class UsuarioCreate(BaseModel):
+    nombre: str = Field(..., min_length=2, max_length=100)
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+
+class UsuarioLogin(BaseModel):
     email: EmailStr
     password: str
 
-class LoginIn(BaseModel):
-    email: EmailStr
-    password: str
+class UsuarioUpdate(BaseModel):
+    nombre: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+    rol: Optional[str] = None
+    activo: Optional[bool] = None
 
-class UserOut(BaseModel):
-    id: int
-    nombre: str
-    email: EmailStr
-    role: str = "user"
-
-class TokenOut(BaseModel):
+class Token(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str
+    user: dict
 
-class BoletaItemIn(BaseModel):
-    product_id: int
-    product_type: str
-    quantity: int
-    price: float
-    title: str
-
-class BoletaIn(BaseModel):
-    items: list[BoletaItemIn]
-    total: float
-    user_id: int
-
-class ProductIn(BaseModel):
-    title: str
-    description: str
-    price: float
-    images: str
-    category: str
-
-class UserUpdate(BaseModel):
+# --- Productos ---
+class ProductoCreate(BaseModel):
     nombre: str
-    email: EmailStr
-    role: str
+    descripcion: str
+    precio: float = Field(..., gt=0)
+    categoria_id: int
+    marca_id: Optional[int] = None
+    imagen_url: Optional[str] = None
+    stock: int = Field(default=0, ge=0)
+    sabor: Optional[str] = None
+    tamano: Optional[str] = None
+
+class ProductoUpdate(BaseModel):
+    nombre: Optional[str] = None
+    descripcion: Optional[str] = None
+    precio: Optional[float] = None
+    categoria_id: Optional[int] = None
+    marca_id: Optional[int] = None
+    imagen_url: Optional[str] = None
+    stock: Optional[int] = None
+    sabor: Optional[str] = None
+    tamano: Optional[str] = None
+    activo: Optional[bool] = None
+
+# --- Categorías ---
+class CategoriaCreate(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+    imagen_url: Optional[str] = None
+
+class CategoriaUpdate(BaseModel):
+    nombre: Optional[str] = None
+    descripcion: Optional[str] = None
+    imagen_url: Optional[str] = None
+
+# --- Marcas ---
+class MarcaCreate(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+    logo_url: Optional[str] = None
+    pais_origen: Optional[str] = None
+
+class MarcaUpdate(BaseModel):
+    nombre: Optional[str] = None
+    descripcion: Optional[str] = None
+    logo_url: Optional[str] = None
+    pais_origen: Optional[str] = None
+
+# --- Proveedores ---
+class ProveedorCreate(BaseModel):
+    nombre: str
+    contacto: Optional[str] = None
+    telefono: Optional[str] = None
+    email: Optional[str] = None
+    direccion: Optional[str] = None
+
+class ProveedorUpdate(BaseModel):
+    nombre: Optional[str] = None
+    contacto: Optional[str] = None
+    telefono: Optional[str] = None
+    email: Optional[str] = None
+    direccion: Optional[str] = None
+
+# --- Creatinas ---
+class CreatinaCreate(BaseModel):
+    producto_id: int
+    tipo_creatina: str
+    gramos_por_porcion: Optional[float] = None
+    porciones: Optional[int] = None
+    certificaciones: Optional[str] = None
+
+class CreatinaUpdate(BaseModel):
+    tipo_creatina: Optional[str] = None
+    gramos_por_porcion: Optional[float] = None
+    porciones: Optional[int] = None
+    certificaciones: Optional[str] = None
+
+# --- Preentrenos ---
+class PreentrenoCreate(BaseModel):
+    producto_id: int
+    cafeina_mg: Optional[int] = None
+    beta_alanina: bool = False
+    citrulina: bool = False
+    nivel_estimulante: Optional[str] = None
+
+class PreentrenoUpdate(BaseModel):
+    cafeina_mg: Optional[int] = None
+    beta_alanina: Optional[bool] = None
+    citrulina: Optional[bool] = None
+    nivel_estimulante: Optional[str] = None
+
+# --- Direcciones ---
+class DireccionCreate(BaseModel):
+    direccion: str
+    ciudad: str
+    codigo_postal: Optional[str] = None
+    pais: str = "Perú"
+    es_principal: bool = False
+
+class DireccionUpdate(BaseModel):
+    direccion: Optional[str] = None
+    ciudad: Optional[str] = None
+    codigo_postal: Optional[str] = None
+    pais: Optional[str] = None
+    es_principal: Optional[bool] = None
+
+# --- Cupones ---
+class CuponCreate(BaseModel):
+    codigo: str
+    tipo_descuento: str  # 'porcentaje' o 'fijo'
+    valor_descuento: float
+    fecha_inicio: str
+    fecha_fin: str
+    usos_maximos: Optional[int] = None
+
+# --- Inventario ---
+class MovimientoInventarioCreate(BaseModel):
+    producto_id: int
+    tipo_movimiento: str  # 'entrada' o 'salida'
+    cantidad: int = Field(..., gt=0)
+    proveedor_id: Optional[int] = None
+    notas: Optional[str] = None
+
+# --- Boletas ---
+class BoletaItemCreate(BaseModel):
+    producto_id: int
+    cantidad: int = Field(..., gt=0)
+
+class BoletaCreate(BaseModel):
+    items: List[BoletaItemCreate]
+    metodo_pago_id: Optional[int] = None
+    direccion_envio: Optional[str] = None
+    cupon_codigo: Optional[str] = None
+
+class BoletaEstadoUpdate(BaseModel):
+    estado: str
+
+# --- Reseñas ---
+class ResenaCreate(BaseModel):
+    producto_id: int
+    calificacion: int = Field(..., ge=1, le=5)
+    comentario: Optional[str] = None
+
+class ResenaUpdate(BaseModel):
+    calificacion: Optional[int] = Field(None, ge=1, le=5)
+    comentario: Optional[str] = None
 
 
-# Seguridad básica
-# pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") # REMOVED due to incompatibility
-import bcrypt
+# ============================================================================
+# UTILIDADES DE AUTENTICACIÓN
+# ============================================================================
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verifica contraseña usando SHA256"""
+    return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
 
-SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_hex(32))
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+def get_password_hash(password: str) -> str:
+    """Hash de contraseña usando SHA256"""
+    return hashlib.sha256(password.encode()).hexdigest()
 
-def hash_password(password: str) -> str:
-    try:
-        # Bcrypt tiene un límite de 72 bytes - truncar si es necesario
-        encoded = password.encode('utf-8')
-        if len(encoded) > 72:
-            password = encoded[:72].decode('utf-8', errors='ignore')
-            encoded = password.encode('utf-8')
-            
-        # Generar salt y hashear
-        salt = bcrypt.gensalt()
-        hashed = bcrypt.hashpw(encoded, salt)
-        return hashed.decode('utf-8')
-    except Exception as e:
-        print(f"ERROR in hash_password: {e}")
-        raise e
-
-def verify_password(plain: str, hashed: str) -> bool:
-    try:
-        # Bcrypt tiene un límite de 72 bytes - truncar si es necesario
-        encoded = plain.encode('utf-8')
-        if len(encoded) > 72:
-            plain = encoded[:72].decode('utf-8', errors='ignore')
-            encoded = plain.encode('utf-8')
-            
-        # Verificar
-        # hashed debe ser bytes
-        if isinstance(hashed, str):
-            hashed_bytes = hashed.encode('utf-8')
-        else:
-            hashed_bytes = hashed
-            
-        return bcrypt.checkpw(encoded, hashed_bytes)
-    except Exception as e:
-        # Si hay cualquier error en la verificación, retornar False
-        print(f"Error verificando password: {e}")
-        return False
-
-def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+def create_access_token(data: dict) -> str:
     to_encode = data.copy()
-    # Usar datetime con timezone (compatible con Python 3.12+)
-    from datetime import timezone
-    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def get_current_user(request: Request):
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Token no provisto")
-    token = auth_header.split(" ", 1)[1]
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = int(payload.get("sub"))
-    except (JWTError, ValueError):
-        raise HTTPException(status_code=401, detail="Token inválido")
-    with get_db() as conn:
-        row = conn.execute(text("SELECT id, nombre, email, role FROM usuarios WHERE id = :id"), {"id": user_id}).first()
-        if not row:
-            raise HTTPException(status_code=404, detail="Usuario no existe")
-        return {"id": row.id, "nombre": row.nombre, "email": row.email, "role": row.role}
-
-@app.get("/")
-def read_root():
-    return {"mensaje": "API de Proteinas - Proyecto Universitario"}
-
-@app.get("/api/v1/auth/me", response_model=UserOut)
-def auth_me(current = Depends(get_current_user)):
-    return UserOut(**current)
-
-@app.get("/api/v1/init-db")
-def inicializar_tablas():
-    """
-    Endpoint para inicializar las tablas en Railway MySQL.
-    Solo ejecutar una vez al desplegar.
-    """
-    try:
-        metadata.create_all(engine)
-        
-        # Verificar tablas creadas
-        with engine.connect() as conn:
-            from sqlalchemy import text
-            result = conn.execute(
-                text("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()")
-            )
-            tables = [row[0] for row in result]
-        
-        return {
-            "status": "success",
-            "mensaje": "Tablas creadas exitosamente",
-            "tablas": tables
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "mensaje": str(e)
-        }
-
-# ===== ENDPOINTS DE PROTEÍNAS =====
-
-def _normalizar_url_imagen(url: str) -> str:
-    """Convierte URLs absolutas a rutas relativas para compatibilidad."""
-    if not url:
-        return url
-    url = url.strip()
-    # Patrones de URLs que necesitan ser normalizados
-    prefijos = [
-        "http://127.0.0.1:8000",
-        "http://localhost:8000",
-        "https://127.0.0.1:8000",
-        "https://localhost:8000"
-    ]
-    for prefijo in prefijos:
-        if url.startswith(prefijo):
-            return url[len(prefijo):]
-    return url
-
-def _formatear(rows):
-    resultado = []
-    for r in rows:
-        d = dict(r._mapping)
-        images_str = d.get("images", "") or ""
-        # Separar por coma y normalizar cada URL
-        images_list = [_normalizar_url_imagen(img.strip()) for img in images_str.split(",") if img.strip()]
-        d["images"] = images_list
-        resultado.append(d)
-    return resultado
-
-@app.get("/api/v1/products")
-def obtener_proteinas(
-    min_price: float | None = None,
-    max_price: float | None = None,
-    category: str | None = None,
-    search: str | None = None
-):
-    stmt = select(productos)
-    condiciones = []
-    params = {}
-    if min_price is not None:
-        condiciones.append(productos.c.price >= min_price)
-    if max_price is not None:
-        condiciones.append(productos.c.price <= max_price)
-    if category:
-        condiciones.append(productos.c.category.like(f"%{category}%"))
-    if search:
-        condiciones.append(productos.c.title.like(f"%{search}%"))
-    if condiciones:
-        stmt = stmt.where(and_(*condiciones))
-    stmt = stmt.order_by(productos.c.title.asc())
-    with get_db() as conn:
-        rows = conn.execute(stmt).all()
-    return _formatear(rows)
-
-@app.get("/api/products")
-def obtener_proteinas_alias(
-    min_price: float | None = None,
-    max_price: float | None = None,
-    category: str | None = None,
-    search: str | None = None
-):
-    """Alias sin versión para compatibilidad con frontend (misma lógica)."""
-    return obtener_proteinas(min_price, max_price, category, search)
-
-# ===== ENDPOINTS DE CREATINAS =====
-
-@app.get("/api/v1/creatinas")
-def obtener_creatinas(
-    min_price: float | None = None,
-    max_price: float | None = None,
-    category: str | None = None,
-    search: str | None = None
-):
-    stmt = select(creatinas)
-    condiciones = []
-    if min_price is not None:
-        condiciones.append(creatinas.c.price >= min_price)
-    if max_price is not None:
-        condiciones.append(creatinas.c.price <= max_price)
-    if category:
-        condiciones.append(creatinas.c.category.like(f"%{category}%"))
-    if search:
-        condiciones.append(creatinas.c.title.like(f"%{search}%"))
-    if condiciones:
-        stmt = stmt.where(and_(*condiciones))
-    stmt = stmt.order_by(creatinas.c.title.asc())
-    with get_db() as conn:
-        rows = conn.execute(stmt).all()
-    return _formatear(rows)
-
-# ===== ENDPOINTS DE PRE-ENTRENOS =====
-
-@app.get("/api/v1/preentrenos")
-def obtener_preentrenos(
-    min_price: float | None = None,
-    max_price: float | None = None,
-    category: str | None = None,
-    search: str | None = None
-):
-    stmt = select(preentrenos)
-    condiciones = []
-    if min_price is not None:
-        condiciones.append(preentrenos.c.price >= min_price)
-    if max_price is not None:
-        condiciones.append(preentrenos.c.price <= max_price)
-    if category:
-        condiciones.append(preentrenos.c.category.like(f"%{category}%"))
-    if search:
-        condiciones.append(preentrenos.c.title.like(f"%{search}%"))
-    if condiciones:
-        stmt = stmt.where(and_(*condiciones))
-    stmt = stmt.order_by(preentrenos.c.title.asc())
-    with get_db() as conn:
-        rows = conn.execute(stmt).all()
-    return _formatear(rows)
-
-# ===== ENDPOINTS PARA OBTENER PRODUCTO POR ID =====
-
-@app.get("/api/v1/products/{product_id}")
-def obtener_producto_por_id(product_id: int):
-    """Obtener un producto específico por su ID."""
-    with get_db() as conn:
-        row = conn.execute(select(productos).where(productos.c.id == product_id)).first()
-        if not row:
-            raise HTTPException(status_code=404, detail="Producto no encontrado")
-        result = _formatear([row])
-        return result[0] if result else None
-
-@app.get("/api/v1/creatinas/{creatina_id}")
-def obtener_creatina_por_id(creatina_id: int):
-    """Obtener una creatina específica por su ID."""
-    with get_db() as conn:
-        row = conn.execute(select(creatinas).where(creatinas.c.id == creatina_id)).first()
-        if not row:
-            raise HTTPException(status_code=404, detail="Creatina no encontrada")
-        result = _formatear([row])
-        return result[0] if result else None
-
-@app.get("/api/v1/preentrenos/{preentreno_id}")
-def obtener_preentreno_por_id(preentreno_id: int):
-    """Obtener un pre-entreno específico por su ID."""
-    with get_db() as conn:
-        row = conn.execute(select(preentrenos).where(preentrenos.c.id == preentreno_id)).first()
-        if not row:
-            raise HTTPException(status_code=404, detail="Pre-entreno no encontrado")
-        result = _formatear([row])
-        return result[0] if result else None
-
-# ===== ENDPOINTS DE USUARIOS (SÚPER SIMPLES) =====
-
-@app.post("/api/v1/auth/register", response_model=UserOut)
-def register(usuario: RegisterIn):
-    """Registrar usuario con password hasheado."""
-    # Validar longitud del password para bcrypt (72 bytes max)
-    if len(usuario.password.encode('utf-8')) > 72:
-        raise HTTPException(status_code=400, detail="Password demasiado largo (máximo 72 caracteres)")
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    if not credentials:
+        raise HTTPException(status_code=401, detail="No autenticado")
     
-    # Usar transacción explícita para asegurar persistencia (commit) en cualquier motor
-    # engine.begin() hace commit automático al salir si no hay excepciones
-    with engine.begin() as conn:
-        result = conn.execute(text("SELECT id FROM usuarios WHERE email = :email"), {"email": usuario.email}).first()
-        if result:
-            raise HTTPException(status_code=400, detail="Email ya registrado")
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Token inválido")
         
-        hashed = hash_password(usuario.password)
-        try:
-            conn.execute(
-                text("INSERT INTO usuarios (nombre, email, password, role) VALUES (:nombre, :email, :password, :role)"),
-                {"nombre": usuario.nombre, "email": usuario.email, "password": hashed, "role": "user"}
-            )
-        except Exception as e:
-            print(f"Error inserting user: {e}")
-            raise HTTPException(status_code=500, detail=f"Error interno al registrar: {str(e)}")
-            
-        new_row = conn.execute(text("SELECT id, nombre, email, role FROM usuarios WHERE email = :email"), {"email": usuario.email}).first()
-        if not new_row:
-            raise HTTPException(status_code=500, detail="Error creando usuario")
-        return UserOut(id=new_row.id, nombre=new_row.nombre, email=new_row.email, role=new_row.role)
+        user = db.get_usuario_by_id(int(user_id))
+        if not user:
+            raise HTTPException(status_code=401, detail="Usuario no encontrado")
+        
+        return user
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token inválido o expirado")
 
-@app.post("/api/register", response_model=UserOut)
-def register_legacy(usuario: RegisterIn):
-    """Alias legacy sin versión."""
-    return register(usuario)
+def get_current_user_optional(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Optional[dict]:
+    if not credentials:
+        return None
+    try:
+        return get_current_user(credentials)
+    except:
+        return None
 
-@app.post("/api/v1/auth/login", response_model=TokenOut)
-def login(datos: LoginIn):
-    with get_db() as conn:
-        row = conn.execute(text("SELECT id, nombre, email, password FROM usuarios WHERE email = :email"), {"email": datos.email}).first()
-        if not row or not verify_password(datos.password, row.password):
-            raise HTTPException(status_code=401, detail="Credenciales inválidas")
-        token = create_access_token({"sub": str(row.id), "email": row.email})
-        return TokenOut(access_token=token)
+def require_admin(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("rol") != "admin":
+        raise HTTPException(status_code=403, detail="Acceso denegado. Se requiere rol de administrador")
+    return user
 
-@app.post("/api/login", response_model=TokenOut)
-def login_legacy(datos: LoginIn):
-    """Alias legacy sin versión."""
-    return login(datos)
+def _formatear_imagen(data: dict) -> dict:
+    """Formatea URLs de imagen para que sean relativas"""
+    if data and 'imagen_url' in data:
+        img = data['imagen_url']
+        if img:
+            # Convertir a ruta relativa
+            if img.startswith(('http://', 'https://')):
+                if '/assets/' in img:
+                    data['imagen_url'] = '/assets' + img.split('/assets')[-1]
+            elif not img.startswith('/assets'):
+                if not img.startswith('/'):
+                    data['imagen_url'] = f'/assets/productos/{img}'
+    return data
 
-@app.get("/api/v1/auth/users/{usuario_id}", response_model=UserOut)
-def obtener_usuario(usuario_id: int):
-    with get_db() as conn:
-        row = conn.execute(text("SELECT id, nombre, email FROM usuarios WHERE id = :id"), {"id": usuario_id}).first()
-        if not row:
-            raise HTTPException(status_code=404, detail="Usuario no encontrado")
-        return UserOut(id=row.id, nombre=row.nombre, email=row.email)
+def _formatear_lista(items: list) -> list:
+    """Formatea lista de items con imágenes"""
+    return [_formatear_imagen(item) for item in items]
 
 
+# ============================================================================
+# ENDPOINTS DE AUTENTICACIÓN
+# ============================================================================
+@app.post("/api/auth/register", response_model=Token, tags=["Auth"])
+async def register(user_data: UsuarioCreate):
+    """Registrar nuevo usuario"""
+    existing = db.get_usuario_by_email(user_data.email)
+    if existing:
+        raise HTTPException(status_code=400, detail="Email ya registrado")
+    
+    hashed = get_password_hash(user_data.password)
+    user_id = db.create_usuario(user_data.nombre, user_data.email, hashed)
+    
+    user = db.get_usuario_by_id(user_id)
+    token = create_access_token({"sub": str(user_id)})
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "nombre": user["nombre"],
+            "email": user["email"],
+            "rol": user["rol"]
+        }
+    }
 
-# ===== CRUD USUARIOS =====
+@app.post("/api/auth/login", response_model=Token, tags=["Auth"])
+async def login(credentials: UsuarioLogin):
+    """Iniciar sesión"""
+    user = db.get_usuario_by_email(credentials.email)
+    if not user or not verify_password(credentials.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Credenciales inválidas")
+    
+    if not user.get("activo", True):
+        raise HTTPException(status_code=403, detail="Usuario desactivado")
+    
+    token = create_access_token({"sub": str(user["id"])})
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "nombre": user["nombre"],
+            "email": user["email"],
+            "rol": user["rol"]
+        }
+    }
 
-@app.get("/api/v1/users")
-def get_all_users():
-    with get_db() as conn:
-        rows = conn.execute(select(usuarios)).all()
-        return [dict(row._mapping) for row in rows]
+@app.get("/api/auth/me", tags=["Auth"])
+async def get_me(user: dict = Depends(get_current_user)):
+    """Obtener usuario actual"""
+    return user
 
-@app.put("/api/v1/users/{user_id}")
-def update_user(user_id: int, user: UserUpdate):
-    with get_db() as conn:
-        conn.execute(
-            usuarios.update().where(usuarios.c.id == user_id).values(
-                nombre=user.nombre,
-                email=user.email,
-                role=user.role
-            )
+
+# ============================================================================
+# CRUD CATEGORÍAS (1 entidad)
+# ============================================================================
+@app.get("/api/categorias", tags=["Categorías"])
+async def listar_categorias():
+    """Listar todas las categorías"""
+    return db.get_all_categorias()
+
+@app.get("/api/categorias/{id}", tags=["Categorías"])
+async def obtener_categoria(id: int):
+    """Obtener categoría por ID"""
+    cat = db.get_categoria_by_id(id)
+    if not cat:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    return cat
+
+@app.post("/api/categorias", tags=["Categorías"])
+async def crear_categoria(data: CategoriaCreate, admin: dict = Depends(require_admin)):
+    """Crear nueva categoría (Admin)"""
+    cat_id = db.create_categoria(data.nombre, data.descripcion, data.imagen_url)
+    return db.get_categoria_by_id(cat_id)
+
+@app.put("/api/categorias/{id}", tags=["Categorías"])
+async def actualizar_categoria(id: int, data: CategoriaUpdate, admin: dict = Depends(require_admin)):
+    """Actualizar categoría (Admin)"""
+    if not db.get_categoria_by_id(id):
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    db.update_categoria(id, data.nombre, data.descripcion, data.imagen_url)
+    return db.get_categoria_by_id(id)
+
+@app.delete("/api/categorias/{id}", tags=["Categorías"])
+async def eliminar_categoria(id: int, admin: dict = Depends(require_admin)):
+    """Eliminar categoría (Admin)"""
+    if not db.get_categoria_by_id(id):
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    db.delete_categoria(id)
+    return {"message": "Categoría eliminada"}
+
+
+# ============================================================================
+# CRUD MARCAS (1 entidad)
+# ============================================================================
+@app.get("/api/marcas", tags=["Marcas"])
+async def listar_marcas():
+    """Listar todas las marcas"""
+    return db.get_all_marcas()
+
+@app.get("/api/marcas/{id}", tags=["Marcas"])
+async def obtener_marca(id: int):
+    """Obtener marca por ID"""
+    marca = db.get_marca_by_id(id)
+    if not marca:
+        raise HTTPException(status_code=404, detail="Marca no encontrada")
+    return marca
+
+@app.post("/api/marcas", tags=["Marcas"])
+async def crear_marca(data: MarcaCreate, admin: dict = Depends(require_admin)):
+    """Crear nueva marca (Admin)"""
+    marca_id = db.create_marca(data.nombre, data.descripcion, data.logo_url, data.pais_origen)
+    return db.get_marca_by_id(marca_id)
+
+@app.put("/api/marcas/{id}", tags=["Marcas"])
+async def actualizar_marca(id: int, data: MarcaUpdate, admin: dict = Depends(require_admin)):
+    """Actualizar marca (Admin)"""
+    if not db.get_marca_by_id(id):
+        raise HTTPException(status_code=404, detail="Marca no encontrada")
+    db.update_marca(id, data.nombre, data.descripcion, data.logo_url, data.pais_origen)
+    return db.get_marca_by_id(id)
+
+@app.delete("/api/marcas/{id}", tags=["Marcas"])
+async def eliminar_marca(id: int, admin: dict = Depends(require_admin)):
+    """Eliminar marca (Admin)"""
+    if not db.get_marca_by_id(id):
+        raise HTTPException(status_code=404, detail="Marca no encontrada")
+    db.delete_marca(id)
+    return {"message": "Marca eliminada"}
+
+
+# ============================================================================
+# CRUD PROVEEDORES (1 entidad)
+# ============================================================================
+@app.get("/api/proveedores", tags=["Proveedores"])
+async def listar_proveedores(admin: dict = Depends(require_admin)):
+    """Listar todos los proveedores (Admin)"""
+    return db.get_all_proveedores()
+
+@app.get("/api/proveedores/{id}", tags=["Proveedores"])
+async def obtener_proveedor(id: int, admin: dict = Depends(require_admin)):
+    """Obtener proveedor por ID (Admin)"""
+    prov = db.get_proveedor_by_id(id)
+    if not prov:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    return prov
+
+@app.post("/api/proveedores", tags=["Proveedores"])
+async def crear_proveedor(data: ProveedorCreate, admin: dict = Depends(require_admin)):
+    """Crear nuevo proveedor (Admin)"""
+    prov_id = db.create_proveedor(data.nombre, data.contacto, data.telefono, data.email, data.direccion)
+    return db.get_proveedor_by_id(prov_id)
+
+@app.put("/api/proveedores/{id}", tags=["Proveedores"])
+async def actualizar_proveedor(id: int, data: ProveedorUpdate, admin: dict = Depends(require_admin)):
+    """Actualizar proveedor (Admin)"""
+    if not db.get_proveedor_by_id(id):
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    db.update_proveedor(id, data.nombre, data.contacto, data.telefono, data.email, data.direccion)
+    return db.get_proveedor_by_id(id)
+
+@app.delete("/api/proveedores/{id}", tags=["Proveedores"])
+async def eliminar_proveedor(id: int, admin: dict = Depends(require_admin)):
+    """Eliminar proveedor (Admin)"""
+    if not db.get_proveedor_by_id(id):
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    db.delete_proveedor(id)
+    return {"message": "Proveedor eliminado"}
+
+
+# ============================================================================
+# CRUD PRODUCTOS (2 entidades: productos + categorías/marcas)
+# ============================================================================
+@app.get("/api/productos", tags=["Productos"])
+async def listar_productos(
+    categoria_id: Optional[int] = None,
+    marca_id: Optional[int] = None,
+    activo: Optional[bool] = True,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    limit: int = Query(100, le=500),
+    offset: int = 0
+):
+    """Listar productos con filtros"""
+    productos = db.get_all_productos(categoria_id, marca_id, activo, limit, offset)
+    # Filtrar por precio en memoria
+    if min_price is not None:
+        productos = [p for p in productos if p['precio'] >= min_price]
+    if max_price is not None:
+        productos = [p for p in productos if p['precio'] <= max_price]
+    return _formatear_lista(productos)
+
+@app.get("/api/productos/buscar", tags=["Productos"])
+async def buscar_productos(q: str = Query(..., min_length=2)):
+    """Buscar productos por nombre, descripción, categoría o marca"""
+    productos = db.search_productos(q)
+    return _formatear_lista(productos)
+
+@app.get("/api/productos/{id}", tags=["Productos"])
+async def obtener_producto(id: int):
+    """Obtener producto por ID"""
+    producto = db.get_producto_by_id(id)
+    if not producto:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    return _formatear_imagen(producto)
+
+@app.post("/api/productos", tags=["Productos"])
+async def crear_producto(data: ProductoCreate, admin: dict = Depends(require_admin)):
+    """Crear nuevo producto (Admin)"""
+    producto_id = db.create_producto(
+        data.nombre, data.descripcion, data.precio, data.categoria_id,
+        data.marca_id, data.imagen_url, data.stock, data.sabor, data.tamano
+    )
+    return _formatear_imagen(db.get_producto_by_id(producto_id))
+
+@app.put("/api/productos/{id}", tags=["Productos"])
+async def actualizar_producto(id: int, data: ProductoUpdate, admin: dict = Depends(require_admin)):
+    """Actualizar producto (Admin)"""
+    if not db.get_producto_by_id(id):
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    db.update_producto(
+        id, data.nombre, data.descripcion, data.precio, data.categoria_id,
+        data.marca_id, data.imagen_url, data.stock, data.sabor, data.tamano, data.activo
+    )
+    return _formatear_imagen(db.get_producto_by_id(id))
+
+@app.delete("/api/productos/{id}", tags=["Productos"])
+async def eliminar_producto(id: int, admin: dict = Depends(require_admin)):
+    """Eliminar producto (Admin)"""
+    if not db.get_producto_by_id(id):
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    db.delete_producto(id)
+    return {"message": "Producto eliminado"}
+
+
+# ============================================================================
+# CRUD CREATINAS (2 entidades: creatinas + productos)
+# ============================================================================
+@app.get("/api/creatinas", tags=["Creatinas"])
+async def listar_creatinas(
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None
+):
+    """Listar todas las creatinas con filtros de precio"""
+    creatinas = db.get_all_creatinas()
+    # Filtrar por precio
+    if min_price is not None:
+        creatinas = [c for c in creatinas if c['precio'] >= min_price]
+    if max_price is not None:
+        creatinas = [c for c in creatinas if c['precio'] <= max_price]
+    return _formatear_lista(creatinas)
+
+@app.get("/api/creatinas/{id}", tags=["Creatinas"])
+async def obtener_creatina(id: int):
+    """Obtener creatina por ID"""
+    creatina = db.get_creatina_by_id(id)
+    if not creatina:
+        raise HTTPException(status_code=404, detail="Creatina no encontrada")
+    return _formatear_imagen(creatina)
+
+@app.post("/api/creatinas", tags=["Creatinas"])
+async def crear_creatina(data: CreatinaCreate, admin: dict = Depends(require_admin)):
+    """Crear nueva creatina (Admin)"""
+    creatina_id = db.create_creatina(
+        data.producto_id, data.tipo_creatina, data.gramos_por_porcion,
+        data.porciones, data.certificaciones
+    )
+    return _formatear_imagen(db.get_creatina_by_id(creatina_id))
+
+@app.put("/api/creatinas/{id}", tags=["Creatinas"])
+async def actualizar_creatina(id: int, data: CreatinaUpdate, admin: dict = Depends(require_admin)):
+    """Actualizar creatina (Admin)"""
+    if not db.get_creatina_by_id(id):
+        raise HTTPException(status_code=404, detail="Creatina no encontrada")
+    db.update_creatina(id, data.tipo_creatina, data.gramos_por_porcion, data.porciones, data.certificaciones)
+    return _formatear_imagen(db.get_creatina_by_id(id))
+
+@app.delete("/api/creatinas/{id}", tags=["Creatinas"])
+async def eliminar_creatina(id: int, admin: dict = Depends(require_admin)):
+    """Eliminar creatina (Admin)"""
+    if not db.get_creatina_by_id(id):
+        raise HTTPException(status_code=404, detail="Creatina no encontrada")
+    db.delete_creatina(id)
+    return {"message": "Creatina eliminada"}
+
+
+# ============================================================================
+# CRUD PREENTRENOS (2 entidades: preentrenos + productos)
+# ============================================================================
+@app.get("/api/preentrenos", tags=["Preentrenos"])
+async def listar_preentrenos(
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None
+):
+    """Listar todos los preentrenos con filtros de precio"""
+    preentrenos = db.get_all_preentrenos()
+    # Filtrar por precio
+    if min_price is not None:
+        preentrenos = [p for p in preentrenos if p['precio'] >= min_price]
+    if max_price is not None:
+        preentrenos = [p for p in preentrenos if p['precio'] <= max_price]
+    return _formatear_lista(preentrenos)
+
+@app.get("/api/preentrenos/{id}", tags=["Preentrenos"])
+async def obtener_preentreno(id: int):
+    """Obtener preentreno por ID"""
+    preentreno = db.get_preentreno_by_id(id)
+    if not preentreno:
+        raise HTTPException(status_code=404, detail="Preentreno no encontrado")
+    return _formatear_imagen(preentreno)
+
+@app.post("/api/preentrenos", tags=["Preentrenos"])
+async def crear_preentreno(data: PreentrenoCreate, admin: dict = Depends(require_admin)):
+    """Crear nuevo preentreno (Admin)"""
+    preentreno_id = db.create_preentreno(
+        data.producto_id, data.cafeina_mg, data.beta_alanina,
+        data.citrulina, data.nivel_estimulante
+    )
+    return _formatear_imagen(db.get_preentreno_by_id(preentreno_id))
+
+@app.put("/api/preentrenos/{id}", tags=["Preentrenos"])
+async def actualizar_preentreno(id: int, data: PreentrenoUpdate, admin: dict = Depends(require_admin)):
+    """Actualizar preentreno (Admin)"""
+    if not db.get_preentreno_by_id(id):
+        raise HTTPException(status_code=404, detail="Preentreno no encontrado")
+    db.update_preentreno(id, data.cafeina_mg, data.beta_alanina, data.citrulina, data.nivel_estimulante)
+    return _formatear_imagen(db.get_preentreno_by_id(id))
+
+@app.delete("/api/preentrenos/{id}", tags=["Preentrenos"])
+async def eliminar_preentreno(id: int, admin: dict = Depends(require_admin)):
+    """Eliminar preentreno (Admin)"""
+    if not db.get_preentreno_by_id(id):
+        raise HTTPException(status_code=404, detail="Preentreno no encontrado")
+    db.delete_preentreno(id)
+    return {"message": "Preentreno eliminado"}
+
+
+# ============================================================================
+# CRUD USUARIOS (Admin)
+# ============================================================================
+@app.get("/api/usuarios", tags=["Usuarios"])
+async def listar_usuarios(admin: dict = Depends(require_admin)):
+    """Listar todos los usuarios (Admin)"""
+    return db.get_all_usuarios()
+
+@app.get("/api/usuarios/{id}", tags=["Usuarios"])
+async def obtener_usuario(id: int, admin: dict = Depends(require_admin)):
+    """Obtener usuario por ID (Admin)"""
+    user = db.get_usuario_by_id(id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return user
+
+@app.put("/api/usuarios/{id}", tags=["Usuarios"])
+async def actualizar_usuario(id: int, data: UsuarioUpdate, admin: dict = Depends(require_admin)):
+    """Actualizar usuario (Admin)"""
+    if not db.get_usuario_by_id(id):
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    password_hash = None
+    if data.password:
+        password_hash = get_password_hash(data.password)
+    
+    db.update_usuario(id, data.nombre, data.email, password_hash, data.rol, data.activo)
+    return db.get_usuario_by_id(id)
+
+@app.delete("/api/usuarios/{id}", tags=["Usuarios"])
+async def eliminar_usuario(id: int, admin: dict = Depends(require_admin)):
+    """Eliminar usuario (Admin)"""
+    if not db.get_usuario_by_id(id):
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    db.delete_usuario(id)
+    return {"message": "Usuario eliminado"}
+
+
+# ============================================================================
+# CRUD DIRECCIONES (Usuario)
+# ============================================================================
+@app.get("/api/direcciones", tags=["Direcciones"])
+async def listar_mis_direcciones(user: dict = Depends(get_current_user)):
+    """Listar direcciones del usuario actual"""
+    return db.get_direcciones_by_usuario(user["id"])
+
+@app.post("/api/direcciones", tags=["Direcciones"])
+async def crear_direccion(data: DireccionCreate, user: dict = Depends(get_current_user)):
+    """Crear nueva dirección"""
+    dir_id = db.create_direccion(
+        user["id"], data.direccion, data.ciudad,
+        data.codigo_postal, data.pais, data.es_principal
+    )
+    return db.get_direccion_by_id(dir_id)
+
+@app.put("/api/direcciones/{id}", tags=["Direcciones"])
+async def actualizar_direccion(id: int, data: DireccionUpdate, user: dict = Depends(get_current_user)):
+    """Actualizar dirección"""
+    dir_data = db.get_direccion_by_id(id)
+    if not dir_data or dir_data["usuario_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="Dirección no encontrada")
+    db.update_direccion(id, data.direccion, data.ciudad, data.codigo_postal, data.pais, data.es_principal)
+    return db.get_direccion_by_id(id)
+
+@app.delete("/api/direcciones/{id}", tags=["Direcciones"])
+async def eliminar_direccion(id: int, user: dict = Depends(get_current_user)):
+    """Eliminar dirección"""
+    dir_data = db.get_direccion_by_id(id)
+    if not dir_data or dir_data["usuario_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="Dirección no encontrada")
+    db.delete_direccion(id)
+    return {"message": "Dirección eliminada"}
+
+
+# ============================================================================
+# MÉTODOS DE PAGO
+# ============================================================================
+@app.get("/api/metodos-pago", tags=["Métodos de Pago"])
+async def listar_metodos_pago():
+    """Listar métodos de pago disponibles"""
+    return db.get_all_metodos_pago()
+
+
+# ============================================================================
+# CUPONES
+# ============================================================================
+@app.get("/api/cupones", tags=["Cupones"])
+async def listar_cupones(admin: dict = Depends(require_admin)):
+    """Listar todos los cupones (Admin)"""
+    return db.get_all_cupones()
+
+@app.post("/api/cupones", tags=["Cupones"])
+async def crear_cupon(data: CuponCreate, admin: dict = Depends(require_admin)):
+    """Crear nuevo cupón (Admin)"""
+    cupon_id = db.create_cupon(
+        data.codigo, data.tipo_descuento, data.valor_descuento,
+        data.fecha_inicio, data.fecha_fin, data.usos_maximos
+    )
+    return {"id": cupon_id, "message": "Cupón creado"}
+
+@app.get("/api/cupones/validar/{codigo}", tags=["Cupones"])
+async def validar_cupon(codigo: str):
+    """Validar un código de cupón"""
+    cupon = db.get_cupon_by_codigo(codigo)
+    if not cupon:
+        raise HTTPException(status_code=404, detail="Cupón no válido o expirado")
+    return cupon
+
+
+# ============================================================================
+# INVENTARIO (3+ entidades: inventario + productos + proveedores)
+# ============================================================================
+@app.get("/api/inventario", tags=["Inventario"])
+async def listar_inventario(admin: dict = Depends(require_admin)):
+    """Listar movimientos de inventario (Admin)"""
+    return db.get_all_inventario()
+
+@app.get("/api/inventario/producto/{producto_id}", tags=["Inventario"])
+async def obtener_inventario_producto(producto_id: int, admin: dict = Depends(require_admin)):
+    """Obtener movimientos de inventario de un producto (Admin)"""
+    return db.get_inventario_by_producto(producto_id)
+
+@app.post("/api/inventario", tags=["Inventario"])
+async def crear_movimiento_inventario(data: MovimientoInventarioCreate, admin: dict = Depends(require_admin)):
+    """Crear movimiento de inventario (Admin)"""
+    if not db.get_producto_by_id(data.producto_id):
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    
+    if data.proveedor_id and not db.get_proveedor_by_id(data.proveedor_id):
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    mov_id = db.create_movimiento_inventario(
+        data.producto_id, data.tipo_movimiento, data.cantidad,
+        data.proveedor_id, data.notas
+    )
+    return {"id": mov_id, "message": "Movimiento registrado"}
+
+
+# ============================================================================
+# CRUD BOLETAS (3+ entidades: boletas + items + productos + usuarios + cupones)
+# ============================================================================
+@app.get("/api/boletas", tags=["Boletas"])
+async def listar_boletas(
+    user: dict = Depends(get_current_user),
+    estado: Optional[str] = None,
+    limit: int = Query(100, le=500),
+    offset: int = 0
+):
+    """Listar boletas del usuario (o todas si es admin)"""
+    if user.get("rol") == "admin":
+        boletas = db.get_all_boletas(estado=estado, limit=limit, offset=offset)
+    else:
+        boletas = db.get_all_boletas(usuario_id=user["id"], estado=estado, limit=limit, offset=offset)
+    return boletas
+
+@app.get("/api/boletas/{id}", tags=["Boletas"])
+async def obtener_boleta(id: int, user: dict = Depends(get_current_user)):
+    """Obtener boleta con items"""
+    boleta = db.get_boleta_with_items(id)
+    if not boleta:
+        raise HTTPException(status_code=404, detail="Boleta no encontrada")
+    
+    # Solo admin o propietario pueden ver
+    if user.get("rol") != "admin" and boleta["usuario_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    # Formatear imágenes de items
+    if boleta.get("items"):
+        boleta["items"] = _formatear_lista(boleta["items"])
+    
+    return boleta
+
+@app.post("/api/boletas", tags=["Boletas"])
+async def crear_boleta(data: BoletaCreate, user: dict = Depends(get_current_user)):
+    """Crear nueva boleta/pedido"""
+    if not data.items:
+        raise HTTPException(status_code=400, detail="Debe incluir al menos un producto")
+    
+    # Calcular totales
+    subtotal = 0
+    items_procesados = []
+    
+    for item in data.items:
+        producto = db.get_producto_by_id(item.producto_id)
+        if not producto:
+            raise HTTPException(status_code=404, detail=f"Producto {item.producto_id} no encontrado")
+        if producto["stock"] < item.cantidad:
+            raise HTTPException(status_code=400, detail=f"Stock insuficiente para {producto['nombre']}")
+        
+        item_subtotal = producto["precio"] * item.cantidad
+        subtotal += item_subtotal
+        items_procesados.append({
+            "producto_id": item.producto_id,
+            "cantidad": item.cantidad,
+            "precio_unitario": producto["precio"],
+            "subtotal": item_subtotal
+        })
+    
+    # Procesar cupón si existe
+    descuento = 0
+    cupon_id = None
+    if data.cupon_codigo:
+        cupon = db.get_cupon_by_codigo(data.cupon_codigo)
+        if cupon:
+            cupon_id = cupon["id"]
+            if cupon["tipo_descuento"] == "porcentaje":
+                descuento = subtotal * (cupon["valor_descuento"] / 100)
+            else:
+                descuento = cupon["valor_descuento"]
+            db.incrementar_uso_cupon(data.cupon_codigo)
+    
+    # Calcular impuestos y total
+    impuestos = (subtotal - descuento) * 0.18  # 18% IGV
+    total = subtotal - descuento + impuestos
+    
+    # Crear boleta
+    boleta_id = db.create_boleta(
+        user["id"], subtotal, impuestos, total,
+        data.metodo_pago_id, data.direccion_envio, cupon_id, descuento
+    )
+    
+    # Crear items y actualizar stock
+    for item in items_procesados:
+        db.create_boleta_item(boleta_id, item["producto_id"], item["cantidad"],
+                             item["precio_unitario"], item["subtotal"])
+        # Registrar salida de inventario
+        db.create_movimiento_inventario(item["producto_id"], "salida", item["cantidad"],
+                                        notas=f"Venta - Boleta #{boleta_id}")
+    
+    return db.get_boleta_with_items(boleta_id)
+
+@app.put("/api/boletas/{id}/estado", tags=["Boletas"])
+async def actualizar_estado_boleta(id: int, data: BoletaEstadoUpdate, admin: dict = Depends(require_admin)):
+    """Actualizar estado de boleta (Admin)"""
+    if not db.get_boleta_by_id(id):
+        raise HTTPException(status_code=404, detail="Boleta no encontrada")
+    
+    estados_validos = ["pendiente", "pagado", "enviado", "entregado", "cancelado"]
+    if data.estado not in estados_validos:
+        raise HTTPException(status_code=400, detail=f"Estado inválido. Válidos: {estados_validos}")
+    
+    db.update_boleta_estado(id, data.estado)
+    return db.get_boleta_by_id(id)
+
+@app.delete("/api/boletas/{id}", tags=["Boletas"])
+async def eliminar_boleta(id: int, admin: dict = Depends(require_admin)):
+    """Eliminar boleta (Admin)"""
+    if not db.get_boleta_by_id(id):
+        raise HTTPException(status_code=404, detail="Boleta no encontrada")
+    db.delete_boleta(id)
+    return {"message": "Boleta eliminada"}
+
+
+# ============================================================================
+# RESEÑAS
+# ============================================================================
+@app.get("/api/resenas/producto/{producto_id}", tags=["Reseñas"])
+async def listar_resenas_producto(producto_id: int):
+    """Listar reseñas de un producto"""
+    return db.get_resenas_by_producto(producto_id)
+
+@app.post("/api/resenas", tags=["Reseñas"])
+async def crear_resena(data: ResenaCreate, user: dict = Depends(get_current_user)):
+    """Crear reseña de producto"""
+    if not db.get_producto_by_id(data.producto_id):
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    
+    resena_id = db.create_resena(data.producto_id, user["id"], data.calificacion, data.comentario)
+    return db.get_resena_by_id(resena_id)
+
+@app.put("/api/resenas/{id}", tags=["Reseñas"])
+async def actualizar_resena(id: int, data: ResenaUpdate, user: dict = Depends(get_current_user)):
+    """Actualizar reseña propia"""
+    resena = db.get_resena_by_id(id)
+    if not resena or resena["usuario_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
+    
+    db.update_resena(id, data.calificacion, data.comentario)
+    return db.get_resena_by_id(id)
+
+@app.delete("/api/resenas/{id}", tags=["Reseñas"])
+async def eliminar_resena(id: int, user: dict = Depends(get_current_user)):
+    """Eliminar reseña propia o como admin"""
+    resena = db.get_resena_by_id(id)
+    if not resena:
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
+    
+    if resena["usuario_id"] != user["id"] and user.get("rol") != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    db.delete_resena(id)
+    return {"message": "Reseña eliminada"}
+
+
+# ============================================================================
+# FAVORITOS
+# ============================================================================
+@app.get("/api/favoritos", tags=["Favoritos"])
+async def listar_favoritos(user: dict = Depends(get_current_user)):
+    """Listar productos favoritos del usuario"""
+    favoritos = db.get_favoritos_by_usuario(user["id"])
+    return _formatear_lista(favoritos)
+
+@app.post("/api/favoritos/{producto_id}", tags=["Favoritos"])
+async def agregar_favorito(producto_id: int, user: dict = Depends(get_current_user)):
+    """Agregar producto a favoritos"""
+    if not db.get_producto_by_id(producto_id):
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    
+    fav_id = db.add_favorito(user["id"], producto_id)
+    return {"id": fav_id, "message": "Agregado a favoritos"}
+
+@app.delete("/api/favoritos/{producto_id}", tags=["Favoritos"])
+async def quitar_favorito(producto_id: int, user: dict = Depends(get_current_user)):
+    """Quitar producto de favoritos"""
+    db.remove_favorito(user["id"], producto_id)
+    return {"message": "Eliminado de favoritos"}
+
+
+# ============================================================================
+# REPORTES Y EXCEL (Admin)
+# ============================================================================
+@app.get("/api/reportes/dashboard", tags=["Reportes"])
+async def obtener_dashboard(admin: dict = Depends(require_admin)):
+    """Obtener estadísticas del dashboard"""
+    return db.get_estadisticas_dashboard()
+
+@app.get("/api/reportes/ventas", tags=["Reportes"])
+async def reporte_ventas(
+    fecha_inicio: Optional[str] = None,
+    fecha_fin: Optional[str] = None,
+    formato: str = Query("json", regex="^(json|excel)$"),
+    admin: dict = Depends(require_admin)
+):
+    """Reporte de ventas con opción de exportar a Excel"""
+    data = db.get_reporte_ventas(fecha_inicio, fecha_fin)
+    
+    if formato == "excel":
+        return _generar_excel(data, "reporte_ventas")
+    return data
+
+@app.get("/api/reportes/productos-vendidos", tags=["Reportes"])
+async def reporte_productos_vendidos(
+    fecha_inicio: Optional[str] = None,
+    fecha_fin: Optional[str] = None,
+    formato: str = Query("json", regex="^(json|excel)$"),
+    admin: dict = Depends(require_admin)
+):
+    """Reporte de productos más vendidos"""
+    data = db.get_reporte_productos_vendidos(fecha_inicio, fecha_fin)
+    
+    if formato == "excel":
+        return _generar_excel(data, "productos_vendidos")
+    return data
+
+@app.get("/api/reportes/inventario", tags=["Reportes"])
+async def reporte_inventario(
+    formato: str = Query("json", regex="^(json|excel)$"),
+    admin: dict = Depends(require_admin)
+):
+    """Reporte de inventario actual"""
+    data = db.get_reporte_inventario()
+    
+    if formato == "excel":
+        return _generar_excel(data, "inventario")
+    return data
+
+@app.get("/api/reportes/clientes", tags=["Reportes"])
+async def reporte_clientes(
+    formato: str = Query("json", regex="^(json|excel)$"),
+    admin: dict = Depends(require_admin)
+):
+    """Reporte de clientes"""
+    data = db.get_reporte_clientes()
+    
+    if formato == "excel":
+        return _generar_excel(data, "clientes")
+    return data
+
+
+def _generar_excel(data: list, nombre: str) -> StreamingResponse:
+    """Genera un archivo Excel a partir de una lista de diccionarios"""
+    try:
+        import openpyxl
+        from openpyxl import Workbook
+    except ImportError:
+        raise HTTPException(
+            status_code=500, 
+            detail="Módulo openpyxl no instalado. Ejecute: pip install openpyxl"
         )
-        conn.commit()
-        return {"status": "success"}
-
-@app.delete("/api/v1/users/{user_id}")
-def delete_user(user_id: int):
-    with get_db() as conn:
-        conn.execute(usuarios.delete().where(usuarios.c.id == user_id))
-        conn.commit()
-        return {"status": "success"}
-
-# ===== BOLETAS =====
-
-@app.post("/api/v1/boletas")
-def create_boleta(boleta: BoletaIn):
-    with get_db() as conn:
-        # Crear boleta
-        result = conn.execute(boletas.insert().values(
-            user_id=boleta.user_id,
-            total=boleta.total,
-            fecha=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ))
-        boleta_id = result.lastrowid
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = nombre[:31]  # Excel limita a 31 caracteres
+    
+    if not data:
+        ws.append(["Sin datos"])
+    else:
+        # Headers
+        headers = list(data[0].keys())
+        ws.append(headers)
         
-        # Crear items
-        for item in boleta.items:
-            conn.execute(boleta_items.insert().values(
-                boleta_id=boleta_id,
-                product_id=item.product_id,
-                product_type=item.product_type,
-                product_title=item.title,
-                quantity=item.quantity,
-                price=item.price
-            ))
-        conn.commit()
-    return {"status": "success", "boleta_id": boleta_id}
+        # Datos
+        for row in data:
+            ws.append([row.get(h) for h in headers])
+        
+        # Auto-ajustar columnas
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws.column_dimensions[column_letter].width = adjusted_width
+    
+    # Guardar en buffer
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    filename = f"{nombre}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
-@app.get("/api/v1/boletas")
-def get_boletas():
-    with get_db() as conn:
-        # Join con usuarios para obtener nombre
-        stmt = select(boletas, usuarios.c.nombre.label("user_name")).join(usuarios, boletas.c.user_id == usuarios.c.id)
-        rows = conn.execute(stmt).all()
-        return [dict(row._mapping) for row in rows]
 
-@app.get("/api/v1/boletas/{id}")
-def get_boleta_detail(id: int):
-    with get_db() as conn:
-        # Join para obtener datos del usuario
-        stmt = select(boletas, usuarios.c.nombre, usuarios.c.email).join(usuarios, boletas.c.user_id == usuarios.c.id).where(boletas.c.id == id)
-        boleta = conn.execute(stmt).first()
-        
-        if not boleta:
-            raise HTTPException(status_code=404, detail="Boleta no encontrada")
-        
-        items = conn.execute(select(boleta_items).where(boleta_items.c.boleta_id == id)).all()
-        
+# ============================================================================
+# UTILIDADES
+# ============================================================================
+@app.get("/api/health", tags=["Sistema"])
+async def health_check():
+    """Verificar estado del sistema"""
+    try:
+        tables = db.check_tables()
         return {
-            "boleta": dict(boleta._mapping),
-            "items": [dict(item._mapping) for item in items]
+            "status": "healthy",
+            "database": "connected",
+            "tables": tables,
+            "total_tables": len(tables)
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e)
         }
 
-@app.get("/api/v1/boletas/usuario/{user_id}")
-def get_boletas_by_user(user_id: int):
-    """Obtener todas las boletas de un usuario específico."""
-    with get_db() as conn:
-        stmt = select(boletas).where(boletas.c.user_id == user_id).order_by(boletas.c.fecha.desc())
-        rows = conn.execute(stmt).all()
-        return [dict(row._mapping) for row in rows]
-
-# ===== ENDPOINT DE SALUD =====
-
-@app.get("/api/v1/health")
-def health_check():
-    """Verificar estado de la API y conexión a BD."""
+@app.post("/api/admin/init-db", tags=["Sistema"])
+async def inicializar_base_datos(admin: dict = Depends(require_admin)):
+    """Reinicializar base de datos (Admin - CUIDADO: borra todos los datos)"""
     try:
-        with get_db() as conn:
-            conn.execute(text("SELECT 1"))
-        return {"status": "healthy", "database": "connected"}
+        db.init_database()
+        return {"message": "Base de datos inicializada correctamente"}
     except Exception as e:
-        return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
-
-# ===== CRUD PRODUCTOS (GENÉRICO) =====
-
-def get_table_by_type(type: str):
-    if type == "productos": return productos
-    if type == "creatinas": return creatinas
-    if type == "preentrenos": return preentrenos
-    raise HTTPException(status_code=400, detail="Tipo de producto inválido")
-
-@app.post("/api/v1/{type}")
-def create_product(type: str, product: ProductIn):
-    table = get_table_by_type(type)
-    with get_db() as conn:
-        conn.execute(table.insert().values(
-            title=product.title,
-            description=product.description,
-            price=product.price,
-            images=product.images,
-            category=product.category
-        ))
-        conn.commit()
-    return {"status": "success"}
-
-@app.put("/api/v1/{type}/{id}")
-def update_product(type: str, id: int, product: ProductIn):
-    table = get_table_by_type(type)
-    with get_db() as conn:
-        conn.execute(table.update().where(table.c.id == id).values(
-            title=product.title,
-            description=product.description,
-            price=product.price,
-            images=product.images,
-            category=product.category
-        ))
-        conn.commit()
-    return {"status": "success"}
-
-@app.delete("/api/v1/{type}/{id}")
-def delete_product(type: str, id: int):
-    table = get_table_by_type(type)
-    with get_db() as conn:
-        conn.execute(table.delete().where(table.c.id == id))
-        conn.commit()
-    return {"status": "success"}
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-if __name__ == "__main__":
-    import uvicorn
-    print("DEBUG: RUNNING APP.PY DIRECTLY")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# ============================================================================
+# EVENTO DE INICIO
+# ============================================================================
+@app.on_event("startup")
+async def startup_event():
+    """Inicializar base de datos al arrancar"""
+    try:
+        tables = db.check_tables()
+        if not tables:
+            print("⚠️ Base de datos vacía. Inicializando...")
+            db.init_database()
+        else:
+            print(f"✅ Base de datos conectada. Tablas: {list(tables.keys())}")
+    except Exception as e:
+        print(f"⚠️ Error verificando base de datos: {e}")
+        print("Intentando inicializar...")
+        try:
+            db.init_database()
+        except Exception as init_error:
+            print(f"❌ Error inicializando: {init_error}")

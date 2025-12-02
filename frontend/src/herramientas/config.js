@@ -1,13 +1,15 @@
 // Configuración central de la URL base de la API
 // En producción (deploy), NO hacemos fallback a localhost para evitar que el navegador
 // solicite permiso de "red local" al intentar escanear/consultar dispositivos.
-// En desarrollo local (hostname === 'localhost'), sí usamos el puerto 8000 como fallback.
+// En desarrollo local (hostname === 'localhost' o '127.0.0.1'), sí usamos el puerto 8000 como fallback.
 
 const ENV_API = import.meta.env.VITE_API_URL;
 
+const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
 export const API_BASE_URL = ENV_API && ENV_API.trim() !== ''
   ? ENV_API.replace(/\/$/, '') // quitar barra final si existe
-  : (window.location.hostname === 'localhost' ? 'http://localhost:8000' : null);
+  : (isLocalDev ? 'http://localhost:8000' : null);
 
 // Helper para construir endpoints, lanza error claro si falta configuración en producción
 export function apiUrl(path) {

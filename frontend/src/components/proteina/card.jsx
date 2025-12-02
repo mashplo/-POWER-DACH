@@ -15,12 +15,12 @@ export default function Card({ producto }) {
     e.stopPropagation(); // Evitar que se active el click del card
     addItemCarrito({
       id: producto.id,
-      title: producto.title,
-      price: producto.price,
-      image: normalizeImageUrl(producto.images),
+      title: producto.nombre,
+      price: producto.precio,
+      image: normalizeImageUrl(producto.imagen_url),
       tipo: "proteina",
     });
-    toast.success(`${producto.title} agregado al carrito`);
+    toast.success(`${producto.nombre} agregado al carrito`);
   };
 
   return (
@@ -28,10 +28,10 @@ export default function Card({ producto }) {
       onClick={handleClick}
       className="card rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300"
     >
-      <img src={normalizeImageUrl(producto.images)} alt={producto.title} className="card-image" />
+      <img src={normalizeImageUrl(producto.imagen_url)} alt={producto.nombre} className="card-image" />
       <div className="card-content px-5 py-4 flex flex-col gap-2">
-        <h2 className="card-title text-lg font-semibold">{producto.title}</h2>
-        <p className="card-price text-2xl font-bold text-primary">S/{producto.price}</p>
+        <h2 className="card-title text-lg font-semibold">{producto.nombre}</h2>
+        <p className="card-price text-2xl font-bold text-primary">S/{producto.precio}</p>
         <button
           onClick={handleAgregarCarrito}
           className="btn btn-primary btn-sm mt-2 w-full"

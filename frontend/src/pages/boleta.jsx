@@ -1,163 +1,148 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { obtenerPedidoPorId } from "../herramientas/pedidos";
-import { FileText, Calendar, CreditCard, User, Mail, Clock } from "lucide-react";
+import { normalizeImageUrl } from "../herramientas/config";
+import { FileText, Calendar, CreditCard, CheckCircle, ArrowLeft, Printer } from "lucide-react";
 
 export default function BoletaPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [pedido, setPedido] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const cargarPedido = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/v1/boletas/${id}`);
-        if (!response.ok) {
-          navigate("/historial");
+        const data = await obtenerPedidoPorId(id);
+        
+        if (!data) {
+          setError("Boleta no encontrada");
           return;
         }
 
-        const data = await response.json();
-
-        // Mapear respuesta del backend al formato esperado por el componente
-        const pedidoMapeado = {
-          id: data.boleta.id,
-          numeroPedido: `PD-${data.boleta.id.toString().padStart(8, '0')}`,
-          fecha: data.boleta.fecha,
-          total: data.boleta.total,
-          metodoPago: "Tarjeta/Efectivo", // El backend no guarda metodo de pago aun, default
-          estado: "Completado",
-          usuario: {
-            nombre: data.boleta.nombre,
-            email: data.boleta.email
-          },
-          items: data.items.map(item => ({
-            title: item.product_title,
-            tipo: item.product_type,
-            cantidad: item.quantity,
-            price: item.price,
-            subtotal: item.quantity * item.price
-          }))
-        };
-
-        setPedido(pedidoMapeado);
+        setPedido(data);
       } catch (error) {
         console.error("Error cargando boleta:", error);
-        navigate("/historial");
+        setError("Error al cargar la boleta");
       } finally {
         setLoading(false);
       }
     };
 
     cargarPedido();
-  }, [id, navigate]);
+  }, [id]);
 
   const imprimirBoleta = () => {
     window.print();
   };
 
+  const formatearFecha = (fecha) => {
+    if (!fecha) return "";
+    // Las fechas de SQLite vienen en UTC, agregar 'Z' para indicarlo
+    const utcDate = fecha.includes('Z') || fecha.includes('+') 
+        ? fecha 
+        : fecha.replace(' ', 'T') + 'Z';
+    return new Date(utcDate).toLocaleString("es-PE", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "America/Lima"
+    });
+  };
+
+  const getEstadoColor = (estado) => {
+    const colores = {
+      pendiente: "badge-warning",
+      procesando: "badge-info",
+      enviado: "badge-primary",
+      entregado: "badge-success",
+      cancelado: "badge-error"
+    };
+    return colores[estado] || "badge-ghost";
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-base-200 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <span className="loading loading-spinner loading-lg"></span>
       </div>
     );
   }
 
-  if (!pedido) {
-    return null;
+  if (error || !pedido) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl text-error mb-4">{error || "Boleta no encontrada"}</p>
+          <button onClick={() => navigate("/historial")} className="btn btn-primary">
+            Ver Historial
+          </button>
+        </div>
+      </div>
+    );
   }
 
-  const fecha = new Date(pedido.fecha);
-  const fechaFormateada = fecha.toLocaleDateString('es-PE', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-  const horaFormateada = fecha.toLocaleTimeString('es-PE', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
   return (
-    <div className="min-h-screen bg-base-200 py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
-        {/* Botones de acción (no se imprimen) */}
+    <div className="min-h-screen bg-base-200 py-10 px-4">
+      <div className="max-w-3xl mx-auto">
+        {/* Botones de acción */}
         <div className="flex justify-between mb-6 print:hidden">
-          <button onClick={() => navigate("/historial")} className="btn btn-ghost">
-            ← Volver al Historial
+          <button onClick={() => navigate("/historial")} className="btn btn-ghost gap-2">
+            <ArrowLeft size={20} />
+            Ver Historial
           </button>
-          <button onClick={imprimirBoleta} className="btn btn-primary">
-            🖨️ Imprimir Boleta
+          <button onClick={imprimirBoleta} className="btn btn-primary gap-2">
+            <Printer size={20} />
+            Imprimir
           </button>
         </div>
 
         {/* Boleta */}
         <div className="bg-white rounded-lg shadow-xl p-8 print:shadow-none">
-          {/* Header con Logo */}
+          {/* Header */}
           <div className="text-center mb-8 border-b-2 border-primary pb-6">
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <img src="/logo.png" alt="Power Dutch" className="h-16 w-auto" />
-              <h1 className="text-4xl font-bold">Power Dutch</h1>
-            </div>
-            <p className="text-gray-600">Suplementos Deportivos de Calidad</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Jr. Los Deportistas 123, Lima - Perú | Tel: (01) 234-5678
-            </p>
+            <h1 className="text-3xl font-bold text-primary mb-2">POWER DACH</h1>
+            <p className="text-gray-600">Suplementos Deportivos Premium</p>
           </div>
 
-          {/* Título de Boleta */}
+          {/* Título y número */}
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold mb-2">BOLETA DE VENTA</h2>
-            <p className="text-lg font-semibold text-primary">
-              N° {pedido.numeroPedido}
+            <h2 className="text-2xl font-bold">BOLETA DE VENTA</h2>
+            <p className="text-lg text-primary font-mono">
+              N° {String(pedido.id).padStart(8, '0')}
             </p>
-          </div>
-
-          {/* Información del Cliente y Fecha */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 bg-base-100 p-4 rounded-lg">
-            <div>
-              <h3 className="font-bold mb-3 flex items-center gap-2">
-                <User size={20} />
-                Datos del Cliente
-              </h3>
-              <div className="space-y-2 text-sm">
-                <p><span className="font-semibold">Nombre:</span> {pedido.usuario.nombre}</p>
-                <p className="flex items-center gap-2">
-                  <Mail size={14} />
-                  {pedido.usuario.email}
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-bold mb-3 flex items-center gap-2">
-                <Calendar size={20} />
-                Fecha y Hora
-              </h3>
-              <div className="space-y-2 text-sm">
-                <p><span className="font-semibold">Fecha:</span> {fechaFormateada}</p>
-                <p className="flex items-center gap-2">
-                  <Clock size={14} />
-                  <span className="font-semibold">Hora:</span> {horaFormateada}
-                </p>
-              </div>
+            <div className={`badge ${getEstadoColor(pedido.estado)} mt-2`}>
+              {pedido.estado?.toUpperCase() || "PENDIENTE"}
             </div>
           </div>
 
-          {/* Método de Pago */}
-          <div className="mb-8 bg-base-100 p-4 rounded-lg">
-            <h3 className="font-bold mb-2 flex items-center gap-2">
-              <CreditCard size={20} />
-              Método de Pago
-            </h3>
-            <p className="text-lg capitalize">{pedido.metodoPago}</p>
+          {/* Información */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-base-100 p-4 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Calendar size={18} className="text-primary" />
+              <span className="font-semibold">Fecha:</span>
+              <span>{formatearFecha(pedido.created_at)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CreditCard size={18} className="text-primary" />
+              <span className="font-semibold">Método:</span>
+              <span className="capitalize">{pedido.metodo_pago || "Efectivo"}</span>
+            </div>
           </div>
 
-          {/* Detalle de Productos */}
-          <div className="mb-8">
-            <h3 className="font-bold mb-4 flex items-center gap-2 text-lg">
+          {/* Dirección de envío */}
+          {pedido.direccion_envio && (
+            <div className="mb-6 bg-base-100 p-4 rounded-lg">
+              <p><span className="font-semibold">Dirección:</span> {pedido.direccion_envio}</p>
+            </div>
+          )}
+
+          {/* Detalle de productos */}
+          <div className="mb-6">
+            <h3 className="font-bold mb-4 flex items-center gap-2">
               <FileText size={20} />
               Detalle del Pedido
             </h3>
@@ -166,23 +151,29 @@ export default function BoletaPage() {
               <table className="table w-full">
                 <thead>
                   <tr className="bg-base-200">
-                    <th className="text-left">Producto</th>
-                    <th className="text-center">Categoría</th>
-                    <th className="text-center">Cantidad</th>
-                    <th className="text-right">Precio Unit.</th>
+                    <th>Producto</th>
+                    <th className="text-center">Cant.</th>
+                    <th className="text-right">P. Unit.</th>
                     <th className="text-right">Subtotal</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pedido.items.map((item, index) => (
+                  {pedido.items?.map((item, index) => (
                     <tr key={index} className="border-b">
-                      <td className="py-3">{item.title}</td>
-                      <td className="text-center capitalize">{item.tipo}</td>
-                      <td className="text-center font-semibold">{item.cantidad}</td>
-                      <td className="text-right">S/ {item.price.toFixed(2)}</td>
-                      <td className="text-right font-semibold">
-                        S/ {item.subtotal.toFixed(2)}
+                      <td className="py-3">
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={normalizeImageUrl(item.imagen_url)} 
+                            alt={item.nombre}
+                            className="w-12 h-12 object-cover rounded print:hidden"
+                            onError={(e) => e.target.style.display = 'none'}
+                          />
+                          <span>{item.nombre}</span>
+                        </div>
                       </td>
+                      <td className="text-center">{item.cantidad}</td>
+                      <td className="text-right">S/ {item.precio_unitario?.toFixed(2)}</td>
+                      <td className="text-right font-semibold">S/ {item.subtotal?.toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -190,20 +181,27 @@ export default function BoletaPage() {
             </div>
           </div>
 
-          {/* Total */}
+          {/* Totales */}
           <div className="border-t-2 border-primary pt-4">
             <div className="flex justify-end">
-              <div className="text-right">
-                <p className="text-lg mb-2">
-                  <span className="font-semibold">Subtotal:</span> S/ {pedido.total.toFixed(2)}
-                </p>
-                <p className="text-lg mb-2">
-                  <span className="font-semibold">IGV (0%):</span> S/ 0.00
-                </p>
-                <div className="bg-primary text-primary-content p-4 rounded-lg mt-2">
-                  <p className="text-2xl font-bold">
-                    TOTAL: S/ {pedido.total.toFixed(2)}
-                  </p>
+              <div className="w-64 space-y-2">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>S/ {pedido.subtotal?.toFixed(2)}</span>
+                </div>
+                {pedido.descuento > 0 && (
+                  <div className="flex justify-between text-success">
+                    <span>Descuento:</span>
+                    <span>- S/ {pedido.descuento?.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span>IGV (18%):</span>
+                  <span>S/ {pedido.impuestos?.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-xl font-bold bg-primary text-white p-3 rounded-lg">
+                  <span>TOTAL:</span>
+                  <span>S/ {pedido.total?.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -211,10 +209,12 @@ export default function BoletaPage() {
 
           {/* Footer */}
           <div className="mt-8 pt-6 border-t text-center text-sm text-gray-600">
-            <p className="mb-2">¡Gracias por tu compra!</p>
-            <p>Estado del pedido: <span className="font-bold text-success">{pedido.estado}</span></p>
-            <p className="mt-4 text-xs">
-              Esta boleta fue generada electrónicamente y es válida sin firma
+            <div className="flex items-center justify-center gap-2 text-success mb-2">
+              <CheckCircle size={20} />
+              <span className="font-semibold">¡Gracias por tu compra!</span>
+            </div>
+            <p className="text-xs">
+              Esta boleta fue generada electrónicamente y es válida sin firma.
             </p>
           </div>
         </div>
@@ -223,15 +223,9 @@ export default function BoletaPage() {
       {/* Estilos para impresión */}
       <style>{`
         @media print {
-          body {
-            background: white;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-          .print\\:shadow-none {
-            box-shadow: none !important;
-          }
+          body { background: white; }
+          .print\\:hidden { display: none !important; }
+          .print\\:shadow-none { box-shadow: none !important; }
         }
       `}</style>
     </div>

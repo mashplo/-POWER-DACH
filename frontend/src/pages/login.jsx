@@ -1,11 +1,13 @@
 import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { loginUsuario } from "../herramientas/usuario"
+import { toast } from "sonner"
 
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
   const [mostrarPassword, setMostrarPassword] = useState(false)
 
   const handleLogin = async (e) => {
@@ -17,23 +19,34 @@ export default function Login() {
       return
     }
 
+    setLoading(true)
+    
     // Login con el backend
     try {
+      console.log("Intentando login con:", email)
       const resultado = await loginUsuario(email, password)
+      console.log("Resultado login:", resultado)
 
       if (resultado.success) {
-        alert("Login exitoso!")
-        if (resultado.usuario.role === 'admin') {
-          window.location.href = "/admin"
-        } else {
-          window.location.href = "/profile"
-        }
+        toast.success("¡Login exitoso!")
+        // Pequeña pausa para que se vea el toast
+        setTimeout(() => {
+          if (resultado.usuario.rol === 'admin') {
+            window.location.href = "/admin"
+          } else {
+            window.location.href = "/profile"
+          }
+        }, 500)
       } else {
         setError(resultado.error || "Email o contraseña incorrectos")
+        toast.error(resultado.error || "Error al iniciar sesión")
       }
     } catch (error) {
+      console.error("Error en login:", error)
       setError("Error al conectar con el servidor")
-      console.error(error)
+      toast.error("Error de conexión")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -86,8 +99,8 @@ export default function Login() {
             )}
 
             <div className="form-control">
-              <button type="submit" className="btn btn-primary w-full">
-                Iniciar Sesión
+              <button type="submit" className="btn btn-primary w-full" disabled={loading}>
+                {loading ? <span className="loading loading-spinner loading-sm"></span> : "Iniciar Sesión"}
               </button>
             </div>
           </form>

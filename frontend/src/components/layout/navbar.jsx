@@ -14,7 +14,7 @@ export default function Navbar() {
 
         actualizarCarrito()
 
-        const usuario = localStorage.getItem("usuarioActual")
+        const usuario = localStorage.getItem("user")
         if (usuario) {
             setUsuarioActual(JSON.parse(usuario))
         }
@@ -30,7 +30,9 @@ export default function Navbar() {
     }, [])
 
     const handleLogout = () => {
-        localStorage.removeItem("usuarioActual")
+        localStorage.removeItem("user")
+        localStorage.removeItem("token")
+        localStorage.removeItem("token")
         setUsuarioActual(null)
         window.location.href = "/"
     }

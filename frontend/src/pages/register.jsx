@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { registrarUsuario } from "../herramientas/usuario"
+import { toast } from "sonner"
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -10,6 +11,7 @@ export default function Register() {
     confirmPassword: ""
   })
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
   const [mostrarPassword, setMostrarPassword] = useState(false)
   const [mostrarConfirmPassword, setMostrarConfirmPassword] = useState(false)
 
@@ -40,19 +42,29 @@ export default function Register() {
       return
     }
 
+    setLoading(true)
+
     // Registrar usuario en el backend
     try {
+      console.log("Intentando registro:", formData.email)
       const resultado = await registrarUsuario(formData.nombre, formData.email, formData.password)
+      console.log("Resultado registro:", resultado)
       
       if (resultado.success) {
-        alert("Cuenta creada exitosamente!")
-        window.location.href = "/login"
+        toast.success("¡Cuenta creada exitosamente!")
+        setTimeout(() => {
+          window.location.href = "/login"
+        }, 500)
       } else {
         setError(resultado.error || "Error al crear la cuenta")
+        toast.error(resultado.error || "Error al registrar")
       }
     } catch (error) {
+      console.error("Error en registro:", error)
       setError("Error al conectar con el servidor")
-      console.error(error)
+      toast.error("Error de conexión")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -144,8 +156,8 @@ export default function Register() {
             )}
 
             <div className="form-control">
-              <button type="submit" className="btn btn-primary w-full">
-                Crear Cuenta
+              <button type="submit" className="btn btn-primary w-full" disabled={loading}>
+                {loading ? <span className="loading loading-spinner loading-sm"></span> : "Crear Cuenta"}
               </button>
             </div>
           </form>

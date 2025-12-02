@@ -11,7 +11,7 @@ export default function Profile() {
 
     const cargarDatos = async () => {
         try {
-            const usuarioLogueado = localStorage.getItem("usuarioActual")
+            const usuarioLogueado = localStorage.getItem("user")
             if (!usuarioLogueado) {
                 window.location.href = "/login"
                 return

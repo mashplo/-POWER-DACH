@@ -1,68 +1,74 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { API_BASE_URL, normalizeImageUrl } from "../herramientas/config";
 import { useState, useEffect } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
+import { addItemCarrito } from "../herramientas/carrito";
 
 export default function PreentrenoDetalle() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [preentreno, setPreentreno] = useState(null);
-  const [imagenActual, setImagenActual] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const obtenerPreentreno = async () => {
       try {
-        if (!API_BASE_URL) return;
-        const response = await fetch(`${API_BASE_URL}/api/v1/preentrenos`);
+        setLoading(true);
+        if (!API_BASE_URL) {
+          setError("API no configurada");
+          return;
+        }
+        const response = await fetch(`${API_BASE_URL}/api/preentrenos/${id}`);
+        if (!response.ok) {
+          throw new Error("Producto no encontrado");
+        }
         const data = await response.json();
-        const preentrenoEncontrado = data.find((p) => p.id === parseInt(id));
-        setPreentreno(preentrenoEncontrado);
+        setPreentreno(data);
       } catch (error) {
         console.error("Error al obtener pre-entreno:", error);
+        setError(error.message);
         toast.error("Error al cargar el producto");
+      } finally {
+        setLoading(false);
       }
     };
     obtenerPreentreno();
   }, [id]);
 
-  const siguienteImagen = () => {
-    if (preentreno && preentreno.images) {
-      setImagenActual((prev) => (prev + 1) % preentreno.images.length);
-    }
-  };
-
-  const imagenAnterior = () => {
-    if (preentreno && preentreno.images) {
-      setImagenActual(
-        (prev) =>
-          (prev - 1 + preentreno.images.length) % preentreno.images.length
-      );
-    }
-  };
-
   const agregarAlCarrito = () => {
-    const carrito = JSON.parse(localStorage.getItem("carrito") || "[]");
-    const existe = carrito.find(
-      (item) => item.id === preentreno.id && item.tipo === "preentreno"
-    );
-
-    if (existe) {
-      existe.cantidad += 1;
-    } else {
-      carrito.push({ ...preentreno, cantidad: 1, tipo: "preentreno" });
-    }
-
-    localStorage.setItem("carrito", JSON.stringify(carrito));
-    toast.success("¡Agregado al carrito!");
+    addItemCarrito({
+      id: preentreno.producto_id, // Usar producto_id para la boleta
+      title: preentreno.nombre,
+      price: preentreno.precio,
+      image: normalizeImageUrl(preentreno.imagen_url),
+      tipo: "preentreno",
+    });
+    toast.success(`${preentreno.nombre} agregado al carrito`);
   };
 
-  if (!preentreno) {
-    return <div className="px-10 py-20">Cargando...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="loading loading-spinner loading-lg"></span>
+      </div>
+    );
+  }
+
+  if (error || !preentreno) {
+    return (
+      <div className="px-10 py-20 text-center">
+        <p className="text-xl text-error mb-4">{error || "Producto no encontrado"}</p>
+        <button onClick={() => navigate("/productos")} className="btn btn-primary">
+          Volver a Productos
+        </button>
+      </div>
+    );
   }
 
   return (
-    <div className="px-10 py-20">
+    <div className="px-10 py-20 max-w-6xl mx-auto">
       <button
         onClick={() => navigate("/productos")}
         className="btn btn-ghost mb-6"
@@ -72,175 +78,73 @@ export default function PreentrenoDetalle() {
       </button>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Galería de imágenes */}
+        {/* Imagen del producto */}
         <div className="lg:w-1/2">
-          <div
-            className="relative bg-base-200 rounded-lg overflow-hidden mb-4"
-            style={{ height: "500px" }}
-          >
+          <div className="bg-base-200 rounded-lg overflow-hidden">
             <img
-              src={normalizeImageUrl(preentreno.images[imagenActual])}
-              alt={preentreno.title}
-              className="w-full h-full object-contain"
+              src={normalizeImageUrl(preentreno.imagen_url)}
+              alt={preentreno.nombre}
+              className="w-full h-[500px] object-contain"
+              onError={(e) => {
+                e.target.src = "https://via.placeholder.com/500x500?text=Sin+Imagen";
+              }}
             />
-
-            {preentreno.images.length > 1 && (
-              <>
-                <button
-                  onClick={imagenAnterior}
-                  className="btn btn-circle btn-sm absolute left-2 top-1/2 -translate-y-1/2 bg-base-100/80 hover:bg-base-100"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <button
-                  onClick={siguienteImagen}
-                  className="btn btn-circle btn-sm absolute right-2 top-1/2 -translate-y-1/2 bg-base-100/80 hover:bg-base-100"
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </>
-            )}
           </div>
-
-          {/* Miniaturas */}
-          {preentreno.images.length > 1 && (
-            <div className="flex gap-2 justify-center">
-              {preentreno.images.map((img, idx) => (
-                <img
-                  key={idx}
-                  src={normalizeImageUrl(img)}
-                  alt={`${preentreno.title} ${idx + 1}`}
-                  className={`w-20 h-20 object-cover rounded cursor-pointer border-2 ${
-                    idx === imagenActual
-                      ? "border-primary"
-                      : "border-transparent"
-                  }`}
-                  onClick={() => setImagenActual(idx)}
-                />
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Información del producto */}
         <div className="lg:w-1/2 flex flex-col">
-          <h1 className="text-3xl font-bold mb-4">{preentreno.title}</h1>
+          <span className="badge badge-secondary mb-2">{preentreno.marca_nombre || "Pre-Entreno"}</span>
+          <h1 className="text-3xl font-bold mb-4">{preentreno.nombre}</h1>
+          
+          <p className="text-gray-600 mb-4">{preentreno.descripcion}</p>
+          
+          <div className="flex gap-4 mb-4 flex-wrap">
+            {preentreno.sabor && (
+              <span className="badge badge-outline">Sabor: {preentreno.sabor}</span>
+            )}
+            {preentreno.tamano && (
+              <span className="badge badge-outline">Tamaño: {preentreno.tamano}</span>
+            )}
+            {preentreno.nivel_estimulante && (
+              <span className="badge badge-warning">Estimulación: {preentreno.nivel_estimulante}</span>
+            )}
+          </div>
+
+          {/* Información específica de pre-entreno */}
+          {(preentreno.cafeina_mg || preentreno.beta_alanina || preentreno.citrulina) && (
+            <div className="bg-base-200 p-4 rounded-lg mb-4">
+              <h3 className="font-bold mb-2">Ingredientes Clave</h3>
+              <ul className="space-y-1 text-sm">
+                {preentreno.cafeina_mg && (
+                  <li><strong>Cafeína:</strong> {preentreno.cafeina_mg}mg</li>
+                )}
+                {preentreno.beta_alanina && (
+                  <li><strong>Beta-Alanina:</strong> {preentreno.beta_alanina}g</li>
+                )}
+                {preentreno.citrulina && (
+                  <li><strong>Citrulina:</strong> {preentreno.citrulina}g</li>
+                )}
+              </ul>
+            </div>
+          )}
+
           <p className="text-4xl font-bold text-primary mb-6">
-            S/{preentreno.price}
+            S/ {preentreno.precio?.toFixed(2)}
           </p>
 
-          <button onClick={agregarAlCarrito} className="btn btn-primary mb-8">
+          <p className={`mb-4 ${preentreno.stock > 0 ? "text-success" : "text-error"}`}>
+            {preentreno.stock > 0 ? `Stock disponible: ${preentreno.stock} unidades` : "Sin stock"}
+          </p>
+
+          <button 
+            onClick={agregarAlCarrito} 
+            className="btn btn-primary btn-lg"
+            disabled={preentreno.stock <= 0}
+          >
+            <ShoppingCart size={20} />
             Agregar al Carrito
           </button>
-
-          <div className="divider"></div>
-
-          <div
-            className="overflow-y-auto flex-1 pr-4 space-y-6"
-            style={{ maxHeight: "500px" }}
-          >
-            <div>
-              <h2 className="text-2xl font-bold text-primary mb-3">
-                Descripción del Producto
-              </h2>
-              <p className="text-lg leading-relaxed">
-                {preentreno.description}
-              </p>
-            </div>
-
-            <div className="divider"></div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-primary mb-3">
-                Composición y Beneficios
-              </h2>
-              <ul className="space-y-3 text-lg">
-                <li className="flex gap-2">
-                  <span className="font-bold text-primary">•</span>
-                  <span>
-                    <strong>Energía y Concentración:</strong> Contiene
-                    ingredientes que potencian la energía mental y física para
-                    entrenamientos intensos.
-                  </span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-bold text-primary">•</span>
-                  <span>
-                    <strong>Rendimiento Mejorado:</strong> Ayuda a maximizar la
-                    fuerza y resistencia durante el ejercicio de alta
-                    intensidad.
-                  </span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-bold text-primary">•</span>
-                  <span>
-                    <strong>Vasodilatación:</strong> Mejora el flujo sanguíneo
-                    hacia los músculos, favoreciendo la entrega de nutrientes.
-                  </span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-bold text-primary">•</span>
-                  <span>
-                    <strong>Recuperación Muscular:</strong> Componentes que
-                    ayudan a reducir la fatiga y acelerar la recuperación
-                    post-entrenamiento.
-                  </span>
-                </li>
-              </ul>
-            </div>
-
-            <div className="divider"></div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-primary mb-3">
-                Uso Recomendado
-              </h2>
-              <ul className="space-y-3 text-lg">
-                <li className="flex gap-2">
-                  <span className="font-bold text-primary">•</span>
-                  <span>
-                    <strong>Dosis recomendada:</strong> Una porción (según
-                    indicaciones del envase) mezclada con agua fría.
-                  </span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-bold text-primary">•</span>
-                  <span>
-                    <strong>Momento de consumo:</strong> Tomar 20-30 minutos
-                    antes del entrenamiento para obtener máximos beneficios.
-                  </span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-bold text-primary">•</span>
-                  <span>
-                    <strong>Importante:</strong> No exceder la dosis
-                    recomendada. Evitar consumir cerca de la hora de dormir
-                    debido al contenido de estimulantes.
-                  </span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-bold text-primary">•</span>
-                  <span>
-                    <strong>Hidratación:</strong> Mantener una ingesta adecuada
-                    de agua durante el entrenamiento al usar pre-entrenos.
-                  </span>
-                </li>
-              </ul>
-            </div>
-
-            <div className="divider"></div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-primary mb-3">
-                Opciones de Compra
-              </h2>
-              <p className="text-lg leading-relaxed">
-                Disponible en diversos sabores para adaptarse a tus
-                preferencias. Presentación en polvo de fácil disolución para
-                preparación rápida antes del entrenamiento.
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

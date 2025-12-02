@@ -23,9 +23,9 @@ export default function SearchBar() {
         }
         const base = API_BASE_URL;
         const [proteinasRes, creatinasRes, preentrenosRes] = await Promise.all([
-          fetch(`${base}/api/v1/products`),
-          fetch(`${base}/api/v1/creatinas`),
-          fetch(`${base}/api/v1/preentrenos`),
+          fetch(`${base}/api/productos?categoria_id=1`),
+          fetch(`${base}/api/creatinas`),
+          fetch(`${base}/api/preentrenos`),
         ]);
 
         if (!proteinasRes.ok || !creatinasRes.ok || !preentrenosRes.ok) {
@@ -67,14 +67,14 @@ export default function SearchBar() {
 
     const term = searchTerm.toLowerCase();
     const filtered = productos.filter((producto) => {
-      const title = producto.title.toLowerCase();
+      const nombre = (producto.nombre || "").toLowerCase();
       const categoria = producto.categoria.toLowerCase();
-      const description = (producto.description || "").toLowerCase();
+      const descripcion = (producto.descripcion || "").toLowerCase();
 
       return (
-        title.includes(term) ||
+        nombre.includes(term) ||
         categoria.includes(term) ||
-        description.includes(term)
+        descripcion.includes(term)
       );
     });
 
@@ -197,8 +197,8 @@ export default function SearchBar() {
                   }`}
               >
                 <img
-                  src={normalizeImageUrl(producto.images)}
-                  alt={producto.title}
+                  src={normalizeImageUrl(producto.imagen_url)}
+                  alt={producto.nombre}
                   className="w-12 h-12 object-cover rounded"
                   onError={(e) => {
                     e.target.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiNlMmU4ZjAiLz48dGV4dCB4PSI1MCIgeT0iNTAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzY0NzQ4YiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==";
@@ -206,7 +206,7 @@ export default function SearchBar() {
                 />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm truncate">
-                    {highlightText(producto.title, searchTerm)}
+                    {highlightText(producto.nombre, searchTerm)}
                   </p>
                   <p
                     className={`text-xs ${index === selectedIndex ? "text-white/80" : "text-gray-500"
@@ -220,7 +220,7 @@ export default function SearchBar() {
                     className={`font-bold ${index === selectedIndex ? "text-white" : "text-primary"
                       }`}
                   >
-                    S/ {producto.price.toFixed(2)}
+                    S/ {producto.precio?.toFixed(2)}
                   </p>
                 </div>
               </div>
