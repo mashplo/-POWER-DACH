@@ -1,7 +1,6 @@
 import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { registrarUsuario } from "../herramientas/usuario"
-import { toast } from "sonner"
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -11,6 +10,7 @@ export default function Register() {
     confirmPassword: ""
   })
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const [loading, setLoading] = useState(false)
   const [mostrarPassword, setMostrarPassword] = useState(false)
   const [mostrarConfirmPassword, setMostrarConfirmPassword] = useState(false)
@@ -25,6 +25,7 @@ export default function Register() {
   const handleRegister = async (e) => {
     e.preventDefault()
     setError("")
+    setSuccess("")
 
     // Validaciones básicas
     if (!formData.nombre || !formData.email || !formData.password || !formData.confirmPassword) {
@@ -46,24 +47,20 @@ export default function Register() {
 
     // Registrar usuario en el backend
     try {
-      console.log("Intentando registro:", formData.email)
       const resultado = await registrarUsuario(formData.nombre, formData.email, formData.password)
-      console.log("Resultado registro:", resultado)
       
-      if (resultado.success) {
-        toast.success("¡Cuenta creada exitosamente!")
+      if (resultado && resultado.success) {
+        setSuccess("¡Cuenta creada exitosamente! Redirigiendo al login...")
         setTimeout(() => {
           window.location.href = "/login"
-        }, 500)
+        }, 1500)
       } else {
-        setError(resultado.error || "Error al crear la cuenta")
-        toast.error(resultado.error || "Error al registrar")
+        setError(resultado?.error || "Error al crear la cuenta")
+        setLoading(false)
       }
-    } catch (error) {
-      console.error("Error en registro:", error)
+    } catch (err) {
+      console.error("Error en registro:", err)
       setError("Error al conectar con el servidor")
-      toast.error("Error de conexión")
-    } finally {
       setLoading(false)
     }
   }
@@ -152,6 +149,12 @@ export default function Register() {
             {error && (
               <div className="alert alert-error mb-4">
                 <span>{error}</span>
+              </div>
+            )}
+
+            {success && (
+              <div className="alert alert-success mb-4">
+                <span>{success}</span>
               </div>
             )}
 

@@ -49,12 +49,25 @@ export async function registrarUsuario(nombre, email, password) {
         });
         if (!resp.ok) {
             const dataErr = await resp.json().catch(() => ({}));
-            return { success: false, error: dataErr.detail || 'Error en registro' };
+            // Manejar errores de validación de FastAPI (422)
+            let errorMessage = 'Error en registro';
+            if (dataErr.detail) {
+                if (typeof dataErr.detail === 'string') {
+                    errorMessage = dataErr.detail;
+                } else if (Array.isArray(dataErr.detail)) {
+                    // FastAPI devuelve array de errores de validación
+                    errorMessage = dataErr.detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+                } else if (typeof dataErr.detail === 'object') {
+                    errorMessage = dataErr.detail.msg || dataErr.detail.message || JSON.stringify(dataErr.detail);
+                }
+            }
+            return { success: false, error: errorMessage };
         }
-        const user = await resp.json();
-        // No se devuelve token en register; dejamos que el usuario inicie sesión separado
-        return { success: true, message: 'Usuario registrado en backend', usuario: user };
+        const data = await resp.json();
+        // El backend devuelve access_token, registro exitoso
+        return { success: true, message: 'Usuario registrado en backend', token: data.access_token };
     } catch (e) {
+        console.error("Error en registrarUsuario:", e);
         return { success: false, error: 'Fallo de conexión al registrar' };
     }
 }
