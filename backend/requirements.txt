@@ -1,0 +1,21 @@
+# POWER-DACH Backend - Dependencias
+# SQL Puro (sin ORM)
+
+# Framework web
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+
+# Autenticación
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.1.2
+
+# Validación
+pydantic[email]==2.6.1
+email-validator==2.1.0.post1
+
+# Excel export
+openpyxl==3.1.2
+
+# Desarrollo
+python-multipart==0.0.9
